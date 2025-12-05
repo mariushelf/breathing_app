@@ -16,6 +16,7 @@ let settings = {
     exhaleRatio: 1.5,
     holdInhale: 0,
     holdExhale: 0,
+    breathingSoundsEnabled: true,
     chimeEnabled: true,
     voiceEnabled: true,
     intervalMinutes: 1
@@ -37,12 +38,14 @@ const bpmSlider = document.getElementById('bpmSlider');
 const ratioSlider = document.getElementById('ratioSlider');
 const holdInhaleSlider = document.getElementById('holdInhaleSlider');
 const holdExhaleSlider = document.getElementById('holdExhaleSlider');
+const breathingSoundsToggle = document.getElementById('breathingSoundsToggle');
 const chimeToggle = document.getElementById('chimeToggle');
 const voiceToggle = document.getElementById('voiceToggle');
 const intervalSlider = document.getElementById('intervalSlider');
 
 // Audio Context for generating sounds
 let audioContext = null;
+let breathingSound = null; // Track current breathing sound for cleanup
 
 function initAudioContext() {
     if (!audioContext) {
@@ -50,6 +53,102 @@ function initAudioContext() {
     }
     if (audioContext.state === 'suspended') {
         audioContext.resume();
+    }
+}
+
+// Create filtered noise for breathing sounds
+function createNoiseBuffer(duration) {
+    const sampleRate = audioContext.sampleRate;
+    const bufferSize = sampleRate * duration;
+    const buffer = audioContext.createBuffer(1, bufferSize, sampleRate);
+    const data = buffer.getChannelData(0);
+    
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+    }
+    
+    return buffer;
+}
+
+// Play inhale breathing sound - rising pitch filtered noise
+function playInhaleSound(duration) {
+    if (!settings.breathingSoundsEnabled) return;
+    
+    initAudioContext();
+    stopBreathingSound(); // Stop any existing breathing sound
+    
+    const noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = createNoiseBuffer(duration + 0.5);
+    
+    // Bandpass filter for breath-like sound
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(300, audioContext.currentTime);
+    filter.frequency.linearRampToValueAtTime(800, audioContext.currentTime + duration);
+    filter.Q.value = 1;
+    
+    // Gain envelope for natural breath sound
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + duration * 0.2);
+    gainNode.gain.setValueAtTime(0.4, audioContext.currentTime + duration * 0.8);
+    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+    
+    noiseSource.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    noiseSource.start(audioContext.currentTime);
+    noiseSource.stop(audioContext.currentTime + duration);
+    
+    breathingSound = { source: noiseSource, gain: gainNode };
+}
+
+// Play exhale breathing sound - falling pitch filtered noise
+function playExhaleSound(duration) {
+    if (!settings.breathingSoundsEnabled) return;
+    
+    initAudioContext();
+    stopBreathingSound(); // Stop any existing breathing sound
+    
+    const noiseSource = audioContext.createBufferSource();
+    noiseSource.buffer = createNoiseBuffer(duration + 0.5);
+    
+    // Bandpass filter for breath-like sound - starts higher, goes lower
+    const filter = audioContext.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(600, audioContext.currentTime);
+    filter.frequency.linearRampToValueAtTime(200, audioContext.currentTime + duration);
+    filter.Q.value = 0.8;
+    
+    // Gain envelope for natural exhale - starts stronger, fades out
+    const gainNode = audioContext.createGain();
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.45, audioContext.currentTime + duration * 0.1);
+    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + duration * 0.7);
+    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
+    
+    noiseSource.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    noiseSource.start(audioContext.currentTime);
+    noiseSource.stop(audioContext.currentTime + duration);
+    
+    breathingSound = { source: noiseSource, gain: gainNode };
+}
+
+// Stop current breathing sound
+function stopBreathingSound() {
+    if (breathingSound) {
+        try {
+            breathingSound.gain.gain.cancelScheduledValues(audioContext.currentTime);
+            breathingSound.gain.gain.setValueAtTime(0, audioContext.currentTime);
+            breathingSound.source.stop(audioContext.currentTime);
+        } catch (e) {
+            // Sound may have already stopped
+        }
+        breathingSound = null;
     }
 }
 
@@ -221,16 +320,22 @@ function transitionToPhase(phase) {
     phaseText.textContent = phaseNames[phase];
     instructionText.textContent = phaseInstructions[phase];
     
+    // Get phase durations for breathing sounds
+    const durations = calculatePhaseDurations();
+    
     // Play sounds and voice
     if (phase === 'inhale') {
         playChime(528, 0.5); // C note
         speak('Breathe in');
+        playInhaleSound(durations.inhale);
     } else if (phase === 'exhale') {
         playChime(396, 0.5); // G note
         speak('Breathe out');
+        playExhaleSound(durations.exhale);
     } else if (phase === 'holdInhale' || phase === 'holdExhale') {
         playChime(440, 0.3); // A note
         speak('Hold');
+        stopBreathingSound(); // Stop breathing sound during hold phases
     }
 }
 
@@ -275,6 +380,7 @@ function pauseSession() {
         cancelAnimationFrame(state.animationFrame);
     }
     stopTimer();
+    stopBreathingSound();
 }
 
 // Reset session
@@ -290,6 +396,7 @@ function resetSession() {
         cancelAnimationFrame(state.animationFrame);
     }
     stopTimer();
+    stopBreathingSound();
     
     startBtn.textContent = 'Start';
     phaseText.textContent = 'Ready';
@@ -382,6 +489,7 @@ function updateUIFromSettings() {
     holdExhaleSlider.value = settings.holdExhale;
     document.getElementById('holdExhaleValue').textContent = settings.holdExhale;
     
+    breathingSoundsToggle.checked = settings.breathingSoundsEnabled;
     chimeToggle.checked = settings.chimeEnabled;
     voiceToggle.checked = settings.voiceEnabled;
     
@@ -426,6 +534,14 @@ holdInhaleSlider.addEventListener('input', (e) => {
 holdExhaleSlider.addEventListener('input', (e) => {
     settings.holdExhale = parseFloat(e.target.value);
     document.getElementById('holdExhaleValue').textContent = settings.holdExhale;
+    saveSettings();
+});
+
+breathingSoundsToggle.addEventListener('change', (e) => {
+    settings.breathingSoundsEnabled = e.target.checked;
+    if (!e.target.checked) {
+        stopBreathingSound(); // Stop any playing breathing sound when disabled
+    }
     saveSettings();
 });
 
