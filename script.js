@@ -16,6 +16,11 @@ let settings = {
     exhaleRatio: 1.5,
     holdInhale: 0,
     holdExhale: 0,
+    // configuration mode: 'bpm' or 'seconds'
+    mode: 'bpm',
+    // explicit durations (seconds) used when mode === 'seconds'
+    inhaleSeconds: 4,
+    exhaleSeconds: 6,
     breathingSoundsEnabled: true,
     chimeEnabled: true,
     voiceEnabled: true,
@@ -36,12 +41,16 @@ const notification = document.getElementById('notification');
 // Sliders
 const bpmSlider = document.getElementById('bpmSlider');
 const ratioSlider = document.getElementById('ratioSlider');
+const inhaleSecondsSlider = document.getElementById('inhaleSecondsSlider');
+const exhaleSecondsSlider = document.getElementById('exhaleSecondsSlider');
 const holdInhaleSlider = document.getElementById('holdInhaleSlider');
 const holdExhaleSlider = document.getElementById('holdExhaleSlider');
 const breathingSoundsToggle = document.getElementById('breathingSoundsToggle');
 const chimeToggle = document.getElementById('chimeToggle');
 const voiceToggle = document.getElementById('voiceToggle');
 const intervalSlider = document.getElementById('intervalSlider');
+
+// Pattern display removed; mode is now internal-only
 
 // Audio Context for generating sounds
 let audioContext = null;
@@ -237,17 +246,39 @@ function speak(text) {
     speechSynthesis.speak(utterance);
 }
 
+function calculateDurationsFromBpmRatio(bpm, exhaleRatio, holdInhale, holdExhale) {
+    const breathCycleSeconds = 60 / bpm;
+    const totalHoldTime = holdInhale + holdExhale;
+    const breathingTime = Math.max(breathCycleSeconds - totalHoldTime, 0.5);
+
+    // Ensure exhaleRatio stays positive to avoid division issues
+    const safeRatio = Math.max(exhaleRatio, 0.1);
+
+    const inhaleTime = breathingTime / (1 + safeRatio);
+    const exhaleTime = inhaleTime * safeRatio;
+
+    return { inhaleTime, exhaleTime };
+}
+
 // Calculate phase durations based on settings
 function calculatePhaseDurations() {
-    const breathCycleSeconds = 60 / settings.bpm;
-    const totalHoldTime = settings.holdInhale + settings.holdExhale;
-    const breathingTime = breathCycleSeconds - totalHoldTime;
-    
-    // Ensure we have positive breathing time
-    const effectiveBreathingTime = Math.max(breathingTime, 2);
-    
-    const inhaleTime = effectiveBreathingTime / (1 + settings.exhaleRatio);
-    const exhaleTime = inhaleTime * settings.exhaleRatio;
+    let inhaleTime;
+    let exhaleTime;
+
+    if (settings.mode === 'seconds') {
+        // Use explicit seconds for inhale/exhale
+        inhaleTime = settings.inhaleSeconds;
+        exhaleTime = settings.exhaleSeconds;
+    } else {
+        const result = calculateDurationsFromBpmRatio(
+            settings.bpm,
+            settings.exhaleRatio,
+            settings.holdInhale,
+            settings.holdExhale
+        );
+        inhaleTime = result.inhaleTime;
+        exhaleTime = result.exhaleTime;
+    }
     
     return {
         inhale: inhaleTime,
@@ -255,6 +286,14 @@ function calculatePhaseDurations() {
         exhale: exhaleTime,
         holdExhale: settings.holdExhale
     };
+}
+
+function formatSeconds(value) {
+    const rounded = Math.round(value * 10) / 10;
+    if (Math.abs(rounded - Math.round(rounded)) < 0.05) {
+        return Math.round(rounded).toString();
+    }
+    return rounded.toFixed(1);
 }
 
 // Animation loop
@@ -505,13 +544,19 @@ function updateUIFromSettings() {
     document.getElementById('bpmValue').textContent = settings.bpm;
     
     ratioSlider.value = settings.exhaleRatio;
-    document.getElementById('ratioValue').textContent = settings.exhaleRatio;
+    document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+
+    inhaleSecondsSlider.value = settings.inhaleSeconds;
+    document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
+
+    exhaleSecondsSlider.value = settings.exhaleSeconds;
+    document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
     
     holdInhaleSlider.value = settings.holdInhale;
-    document.getElementById('holdInhaleValue').textContent = settings.holdInhale;
+    document.getElementById('holdInhaleValue').textContent = formatSeconds(settings.holdInhale);
     
     holdExhaleSlider.value = settings.holdExhale;
-    document.getElementById('holdExhaleValue').textContent = settings.holdExhale;
+    document.getElementById('holdExhaleValue').textContent = formatSeconds(settings.holdExhale);
     
     breathingSoundsToggle.checked = settings.breathingSoundsEnabled;
     chimeToggle.checked = settings.chimeEnabled;
@@ -540,24 +585,148 @@ settingsToggle.addEventListener('click', () => {
 bpmSlider.addEventListener('input', (e) => {
     settings.bpm = parseInt(e.target.value);
     document.getElementById('bpmValue').textContent = settings.bpm;
+    // When BPM is adjusted, prefer BPM mode and keep relative phase ratios
+    settings.mode = 'bpm';
+
+    const currentTotal = settings.inhaleSeconds + settings.holdInhale + settings.exhaleSeconds + settings.holdExhale;
+    if (currentTotal > 0) {
+        const targetTotal = 60 / settings.bpm;
+        const scale = targetTotal / currentTotal;
+
+        settings.inhaleSeconds *= scale;
+        settings.holdInhale *= scale;
+        settings.exhaleSeconds *= scale;
+        settings.holdExhale *= scale;
+    }
+
+    inhaleSecondsSlider.value = settings.inhaleSeconds;
+    document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
+    holdInhaleSlider.value = settings.holdInhale;
+    document.getElementById('holdInhaleValue').textContent = formatSeconds(settings.holdInhale);
+    exhaleSecondsSlider.value = settings.exhaleSeconds;
+    document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
+    holdExhaleSlider.value = settings.holdExhale;
+    document.getElementById('holdExhaleValue').textContent = formatSeconds(settings.holdExhale);
+
+    // keep exhaleRatio in sync with seconds
+    if (settings.inhaleSeconds > 0) {
+        settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
+        ratioSlider.value = settings.exhaleRatio;
+        document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+    }
+
     saveSettings();
 });
 
 ratioSlider.addEventListener('input', (e) => {
     settings.exhaleRatio = parseFloat(e.target.value);
-    document.getElementById('ratioValue').textContent = settings.exhaleRatio;
+    document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+    // When ratio is adjusted, prefer BPM mode and recompute inhale/exhale while keeping total cycle
+    settings.mode = 'bpm';
+
+    const totalCycle = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
+    const breathingTime = Math.max(totalCycle - (settings.holdInhale + settings.holdExhale), 0.5);
+    const safeRatio = Math.max(settings.exhaleRatio, 0.1);
+    const inhaleTime = breathingTime / (1 + safeRatio);
+    const exhaleTime = inhaleTime * safeRatio;
+
+    settings.inhaleSeconds = inhaleTime;
+    settings.exhaleSeconds = exhaleTime;
+
+    inhaleSecondsSlider.value = settings.inhaleSeconds;
+    document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
+    exhaleSecondsSlider.value = settings.exhaleSeconds;
+    document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
+
+    if (totalCycle > 0) {
+        const newTotal = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
+        settings.bpm = Math.round(60 / newTotal);
+        bpmSlider.value = settings.bpm;
+        document.getElementById('bpmValue').textContent = settings.bpm;
+    }
+
+    saveSettings();
+});
+
+inhaleSecondsSlider.addEventListener('input', (e) => {
+    settings.inhaleSeconds = parseFloat(e.target.value);
+    document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
+
+    // When explicit seconds are adjusted, prefer seconds mode
+    settings.mode = 'seconds';
+
+    // Derive BPM and ratio from explicit seconds and holds
+    const totalCycle = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
+    if (totalCycle > 0) {
+        settings.bpm = Math.round(60 / totalCycle);
+        settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
+        bpmSlider.value = settings.bpm;
+        document.getElementById('bpmValue').textContent = settings.bpm;
+        ratioSlider.value = settings.exhaleRatio;
+        document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+    }
+    saveSettings();
+});
+
+exhaleSecondsSlider.addEventListener('input', (e) => {
+    settings.exhaleSeconds = parseFloat(e.target.value);
+    document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
+
+    // When explicit seconds are adjusted, prefer seconds mode
+    settings.mode = 'seconds';
+
+    // Derive BPM and ratio from explicit seconds and holds
+    const totalCycle = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
+    if (totalCycle > 0) {
+        settings.bpm = Math.round(60 / totalCycle);
+        settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
+        bpmSlider.value = settings.bpm;
+        document.getElementById('bpmValue').textContent = settings.bpm;
+        ratioSlider.value = settings.exhaleRatio;
+        document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+    }
     saveSettings();
 });
 
 holdInhaleSlider.addEventListener('input', (e) => {
     settings.holdInhale = parseFloat(e.target.value);
-    document.getElementById('holdInhaleValue').textContent = settings.holdInhale;
+    document.getElementById('holdInhaleValue').textContent = formatSeconds(settings.holdInhale);
+    // In BPM mode, keep inhale/exhale seconds in sync with effective pattern
+    if (settings.mode === 'bpm') {
+        const bpmDurations = calculateDurationsFromBpmRatio(
+            settings.bpm,
+            settings.exhaleRatio,
+            settings.holdInhale,
+            settings.holdExhale
+        );
+        settings.inhaleSeconds = bpmDurations.inhaleTime;
+        settings.exhaleSeconds = bpmDurations.exhaleTime;
+        inhaleSecondsSlider.value = settings.inhaleSeconds;
+        document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
+        exhaleSecondsSlider.value = settings.exhaleSeconds;
+        document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
+    }
     saveSettings();
 });
 
 holdExhaleSlider.addEventListener('input', (e) => {
     settings.holdExhale = parseFloat(e.target.value);
-    document.getElementById('holdExhaleValue').textContent = settings.holdExhale;
+    document.getElementById('holdExhaleValue').textContent = formatSeconds(settings.holdExhale);
+    // In BPM mode, keep inhale/exhale seconds in sync with effective pattern
+    if (settings.mode === 'bpm') {
+        const bpmDurations = calculateDurationsFromBpmRatio(
+            settings.bpm,
+            settings.exhaleRatio,
+            settings.holdInhale,
+            settings.holdExhale
+        );
+        settings.inhaleSeconds = bpmDurations.inhaleTime;
+        settings.exhaleSeconds = bpmDurations.exhaleTime;
+        inhaleSecondsSlider.value = settings.inhaleSeconds;
+        document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
+        exhaleSecondsSlider.value = settings.exhaleSeconds;
+        document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
+    }
     saveSettings();
 });
 
@@ -589,6 +758,8 @@ intervalSlider.addEventListener('input', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     updateUIFromSettings();
+    // Show settings panel by default on load
+    settingsPanel.classList.add('open');
     
     // Preload voices for speech synthesis
     if ('speechSynthesis' in window) {
