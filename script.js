@@ -70,71 +70,95 @@ function createNoiseBuffer(duration) {
     return buffer;
 }
 
-// Play inhale breathing sound - rising pitch filtered noise
+// Play inhale breathing sound - soft "shhhhee" suction-like noise
 function playInhaleSound(duration) {
     if (!settings.breathingSoundsEnabled) return;
-    
+
     initAudioContext();
     stopBreathingSound(); // Stop any existing breathing sound
-    
+
     const noiseSource = audioContext.createBufferSource();
     noiseSource.buffer = createNoiseBuffer(duration + 0.5);
-    
-    // Bandpass filter for breath-like sound
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(300, audioContext.currentTime);
-    filter.frequency.linearRampToValueAtTime(800, audioContext.currentTime + duration);
-    filter.Q.value = 1;
-    
-    // Gain envelope for natural breath sound
+
+    // Dual-filter chain for a softer, more focused breath tone
+    const bandpass = audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    // Gentle rising centre frequency for subtle "ee" character
+    bandpass.frequency.setValueAtTime(220, audioContext.currentTime);
+    bandpass.frequency.linearRampToValueAtTime(420, audioContext.currentTime + duration);
+    bandpass.Q.value = 1.2;
+
+    const lowpass = audioContext.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    // Roll off harsher highs so it stays pleasant on headphones
+    lowpass.frequency.setValueAtTime(1500, audioContext.currentTime);
+
+    // Softer gain envelope with rounded attack/release — slightly louder overall
     const gainNode = audioContext.createGain();
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.4, audioContext.currentTime + duration * 0.2);
-    gainNode.gain.setValueAtTime(0.4, audioContext.currentTime + duration * 0.8);
-    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
-    
-    noiseSource.connect(filter);
-    filter.connect(gainNode);
+    const now = audioContext.currentTime;
+    const attackEnd = now + duration * 0.25;
+    const sustainEnd = now + duration * 0.85;
+
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(0, now);
+    // Increase peak and sustain for better audibility
+    gainNode.gain.linearRampToValueAtTime(0.5, attackEnd);
+    gainNode.gain.setValueAtTime(0.5, sustainEnd);
+    gainNode.gain.linearRampToValueAtTime(0.02, now + duration);
+
+    noiseSource.connect(bandpass);
+    bandpass.connect(lowpass);
+    lowpass.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
-    noiseSource.start(audioContext.currentTime);
-    noiseSource.stop(audioContext.currentTime + duration);
-    
+
+    noiseSource.start(now);
+    noiseSource.stop(now + duration + 0.1);
+
     breathingSound = { source: noiseSource, gain: gainNode };
 }
 
-// Play exhale breathing sound - falling pitch filtered noise
+// Play exhale breathing sound - soft "sshuuu" release
 function playExhaleSound(duration) {
     if (!settings.breathingSoundsEnabled) return;
-    
+
     initAudioContext();
     stopBreathingSound(); // Stop any existing breathing sound
-    
+
     const noiseSource = audioContext.createBufferSource();
     noiseSource.buffer = createNoiseBuffer(duration + 0.5);
-    
-    // Bandpass filter for breath-like sound - starts higher, goes lower
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.frequency.setValueAtTime(600, audioContext.currentTime);
-    filter.frequency.linearRampToValueAtTime(200, audioContext.currentTime + duration);
-    filter.Q.value = 0.8;
-    
-    // Gain envelope for natural exhale - starts stronger, fades out
+
+    // Slightly lower, widening band for a warm "uuu" quality
+    const bandpass = audioContext.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.setValueAtTime(260, audioContext.currentTime);
+    bandpass.frequency.linearRampToValueAtTime(180, audioContext.currentTime + duration);
+    bandpass.Q.value = 0.9;
+
+    const lowpass = audioContext.createBiquadFilter();
+    lowpass.type = 'lowpass';
+    lowpass.frequency.setValueAtTime(1300, audioContext.currentTime);
+
+    // Exhale starts slightly stronger then gently fades out — overall louder
     const gainNode = audioContext.createGain();
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.45, audioContext.currentTime + duration * 0.1);
-    gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + duration * 0.7);
-    gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + duration);
-    
-    noiseSource.connect(filter);
-    filter.connect(gainNode);
+    const now = audioContext.currentTime;
+    const peakTime = now + duration * 0.15;
+    const tailTime = now + duration * 0.8;
+
+    gainNode.gain.cancelScheduledValues(now);
+    gainNode.gain.setValueAtTime(0, now);
+    // Increase levels ~2x while keeping the same contour
+    gainNode.gain.linearRampToValueAtTime(0.6, peakTime);
+    gainNode.gain.linearRampToValueAtTime(0.36, tailTime);
+    gainNode.gain.linearRampToValueAtTime(0.01, now + duration);
+
+    noiseSource.connect(bandpass);
+    bandpass.connect(lowpass);
+    lowpass.connect(gainNode);
     gainNode.connect(audioContext.destination);
-    
-    noiseSource.start(audioContext.currentTime);
-    noiseSource.stop(audioContext.currentTime + duration);
-    
+
+    noiseSource.start(now);
+    noiseSource.stop(now + duration + 0.1);
+
     breathingSound = { source: noiseSource, gain: gainNode };
 }
 
