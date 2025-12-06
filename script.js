@@ -9,7 +9,8 @@ const state = {
     timerInterval: null,
     lastIntervalNotification: 0,
     graphStartTime: null,
-    graphAccumulated: 0
+    graphAccumulated: 0,
+    pausedPhaseElapsed: 0
 };
 
 // Settings with defaults
@@ -560,6 +561,7 @@ function easeInOutSine(t) {
 function transitionToPhase(phase) {
     state.currentPhase = phase;
     state.phaseStartTime = null;
+    state.pausedPhaseElapsed = 0;
     
     const phaseNames = {
         inhale: 'Inhale',
@@ -616,8 +618,11 @@ function startSession() {
     if (state.isPaused) {
         // Resume from pause
         state.isPaused = false;
-        state.phaseStartTime = null;
-        state.graphStartTime = null;
+        const now = performance.now();
+        const pausedOffsetMs = (state.pausedPhaseElapsed || 0) * 1000;
+        state.phaseStartTime = now - pausedOffsetMs;
+        state.graphStartTime = now;
+        state.pausedPhaseElapsed = 0;
         startBtn.textContent = 'Pause';
         breathingCircle.classList.add('animating');
         state.animationFrame = requestAnimationFrame(animate);
@@ -632,6 +637,7 @@ function startSession() {
     state.lastIntervalNotification = 0;
     state.graphAccumulated = 0;
     state.graphStartTime = null;
+    state.pausedPhaseElapsed = 0;
 
     startBtn.textContent = 'Pause';
     breathingCircle.classList.add('animating');
@@ -651,6 +657,12 @@ function startSession() {
 function pauseSession() {
     state.isPaused = true;
     startBtn.textContent = 'Resume';
+
+    if (state.phaseStartTime != null) {
+        state.pausedPhaseElapsed = (performance.now() - state.phaseStartTime) / 1000;
+    } else {
+        state.pausedPhaseElapsed = 0;
+    }
 
     state.graphAccumulated = getCurrentGraphTime();
     state.graphStartTime = null;
@@ -672,6 +684,7 @@ function resetSession() {
     state.lastIntervalNotification = 0;
     state.graphStartTime = null;
     state.graphAccumulated = 0;
+    state.pausedPhaseElapsed = 0;
     
     if (state.animationFrame) {
         cancelAnimationFrame(state.animationFrame);
