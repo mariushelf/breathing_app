@@ -6,7 +6,7 @@ presets:
     holdInhale: 0
     exhale: 6
     holdExhale: 0
-    mode: bpm
+    mode: seconds
     description: "Functional, light 6 BPM rhythm for everyday calm and steady focus."
 
   - id: box
