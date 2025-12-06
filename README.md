@@ -3,7 +3,7 @@
 Calming breathwork coach with a soothing expanding circle, live timer, and science-backed presets to guide your inhale/hold/exhale rhythm in real time.
 
 ## Quick start
-1. Open `index.html` in a modern browser (desktop or mobile). No install or account needed.
+1. Open the [Breathwork Coach](https://mariushelf.github.io/breathing_app/).
 2. Press **Start** to begin. Follow the circle and on-screen cues for inhale, holds, and exhale.
 3. Tap **Reset** any time to restart the session timer.
 
