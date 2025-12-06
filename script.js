@@ -475,7 +475,11 @@ function renderGraphWithCurrentSettings(timestamp = performance.now()) {
 // Animation loop
 function animate(timestamp) {
     if (!state.isRunning || state.isPaused) return;
-    
+
+    if (state.graphStartTime == null) {
+        state.graphStartTime = timestamp;
+    }
+
     if (!state.phaseStartTime) {
         state.phaseStartTime = timestamp;
     }
@@ -608,12 +612,12 @@ function transitionToPhase(phase) {
 // Start breathing session
 function startSession() {
     initAudioContext();
-    
+
     if (state.isPaused) {
         // Resume from pause
         state.isPaused = false;
         state.phaseStartTime = null;
-        state.graphStartTime = performance.now();
+        state.graphStartTime = null;
         startBtn.textContent = 'Pause';
         breathingCircle.classList.add('animating');
         state.animationFrame = requestAnimationFrame(animate);
@@ -627,7 +631,7 @@ function startSession() {
     state.elapsedSeconds = 0;
     state.lastIntervalNotification = 0;
     state.graphAccumulated = 0;
-    state.graphStartTime = performance.now();
+    state.graphStartTime = null;
 
     startBtn.textContent = 'Pause';
     breathingCircle.classList.add('animating');
@@ -1149,7 +1153,7 @@ function syncSessionAfterSettingsChange() {
         state.currentPhase = 'inhale';
         state.phaseStartTime = null;
         state.graphAccumulated = 0;
-        state.graphStartTime = performance.now();
+        state.graphStartTime = null;
         transitionToPhase('inhale');
     }
 
