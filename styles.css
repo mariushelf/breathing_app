@@ -10,7 +10,7 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
     background-size: 400% 400%;
     animation: gradientShift 15s ease infinite;
@@ -31,7 +31,7 @@ body {
     justify-content: center;
     flex: 1;
     padding: 20px;
-    padding-bottom: 100px;
+    padding-bottom: 20px;
 }
 
 .breathing-container {
@@ -172,7 +172,7 @@ body {
     transform: translateY(calc(100% - 50px));
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 100;
-    max-height: 80vh;
+    max-height: 65vh;
     overflow-y: auto;
 }
 
@@ -231,6 +231,27 @@ body {
 
 .setting-item:last-child {
     margin-bottom: 0;
+}
+
+.preset-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.preset-buttons .preset-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    /* Override generic secondary button styling for better contrast
+       inside the light settings card */
+    background: #ffffff;
+    color: #5d4037;
+    border: 1px solid rgba(255, 152, 0, 0.4);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.preset-buttons .preset-btn:hover {
+    background: #ffe7d0;
 }
 
 .setting-item label {

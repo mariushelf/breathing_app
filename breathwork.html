@@ -55,31 +55,39 @@
 
                     <div class="setting-item">
                         <label>Inhale Duration (s)</label>
-                        <input type="range" id="inhaleSecondsSlider" min="1" max="20" step="0.5" value="4">
+                        <input type="range" id="inhaleSecondsSlider" min="0" max="30" step="0.5" value="4">
                         <div class="setting-value"><span id="inhaleSecondsValue">4</span>s</div>
                     </div>
 
                     <div class="setting-item">
                         <label>Hold After Inhale (s)</label>
-                        <input type="range" id="holdInhaleSlider" min="0" max="8" step="0.5" value="0">
+                        <input type="range" id="holdInhaleSlider" min="0" max="30" step="0.5" value="0">
                         <div class="setting-value"><span id="holdInhaleValue">0</span>s</div>
                     </div>
 
                     <div class="setting-item">
                         <label>Exhale Duration (s)</label>
-                        <input type="range" id="exhaleSecondsSlider" min="0.5" max="30" step="0.5" value="6">
+                        <input type="range" id="exhaleSecondsSlider" min="0" max="30" step="0.5" value="6">
                         <div class="setting-value"><span id="exhaleSecondsValue">6</span>s</div>
                     </div>
 
                     <div class="setting-item">
                         <label>Hold After Exhale (s)</label>
-                        <input type="range" id="holdExhaleSlider" min="0" max="8" step="0.5" value="0">
+                        <input type="range" id="holdExhaleSlider" min="0" max="30" step="0.5" value="0">
                         <div class="setting-value"><span id="holdExhaleValue">0</span>s</div>
                     </div>
                 </div>
 
                 <div class="setting-group">
-                    <h3>Audio</h3>
+                    <h3>Presets</h3>
+                    <div class="setting-item preset-buttons">
+                        <button class="btn btn-secondary preset-btn" id="presetMindful">Mindful (4-0-6-0)</button>
+                        <button class="btn btn-secondary preset-btn" id="presetBox">Box (4-4-4-4)</button>
+                    </div>
+                </div>
+
+                <div class="setting-group">
+                    <h3>Audio & Notifications</h3>
                     <div class="setting-item toggle-switch">
                         <label>Breathing Sounds</label>
                         <input type="checkbox" id="breathingSoundsToggle" checked>
@@ -95,10 +103,7 @@
                         <input type="checkbox" id="voiceToggle" checked>
                         <label class="toggle-slider" for="voiceToggle"></label>
                     </div>
-                </div>
 
-                <div class="setting-group">
-                    <h3>Notifications</h3>
                     <div class="setting-item">
                         <label>Interval Reminder (minutes)</label>
                         <input type="range" id="intervalSlider" min="0" max="10" step="1" value="1">

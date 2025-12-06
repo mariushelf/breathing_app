@@ -37,6 +37,7 @@ const resetBtn = document.getElementById('resetBtn');
 const settingsPanel = document.getElementById('settingsPanel');
 const settingsToggle = document.getElementById('settingsToggle');
 const notification = document.getElementById('notification');
+const mainContainer = document.querySelector('.main-container');
 
 // Sliders
 const bpmSlider = document.getElementById('bpmSlider');
@@ -49,6 +50,8 @@ const breathingSoundsToggle = document.getElementById('breathingSoundsToggle');
 const chimeToggle = document.getElementById('chimeToggle');
 const voiceToggle = document.getElementById('voiceToggle');
 const intervalSlider = document.getElementById('intervalSlider');
+const presetMindfulBtn = document.getElementById('presetMindful');
+const presetBoxBtn = document.getElementById('presetBox');
 
 // Pattern display removed; mode is now internal-only
 
@@ -288,6 +291,30 @@ function calculatePhaseDurations() {
     };
 }
 
+// Layout: keep breathing bubble + controls vertically centered
+// in the space not occupied by the settings panel
+function updateLayoutForSettings() {
+    if (!mainContainer || !settingsPanel || !settingsToggle) return;
+
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+    const isOpen = settingsPanel.classList.contains('open');
+
+    let occupiedHeight;
+    if (isOpen) {
+        occupiedHeight = settingsPanel.getBoundingClientRect().height;
+    } else {
+        occupiedHeight = settingsToggle.getBoundingClientRect().height;
+    }
+
+    const availableHeight = Math.max(viewportHeight - occupiedHeight, 0);
+    const mainRect = mainContainer.getBoundingClientRect();
+    const mainHeight = mainRect.height;
+
+    const marginTop = Math.max((availableHeight - mainHeight) / 2, 20);
+    mainContainer.style.marginTop = `${marginTop}px`;
+    mainContainer.style.marginBottom = '20px';
+}
+
 function formatSeconds(value) {
     const rounded = Math.round(value * 10) / 10;
     if (Math.abs(rounded - Math.round(rounded)) < 0.05) {
@@ -428,6 +455,7 @@ function startSession() {
     
     // Close settings panel when starting
     settingsPanel.classList.remove('open');
+    updateLayoutForSettings();
     
     transitionToPhase('inhale');
     state.animationFrame = requestAnimationFrame(animate);
@@ -579,6 +607,7 @@ resetBtn.addEventListener('click', resetSession);
 
 settingsToggle.addEventListener('click', () => {
     settingsPanel.classList.toggle('open');
+    updateLayoutForSettings();
 });
 
 // Settings change handlers
@@ -659,11 +688,16 @@ inhaleSecondsSlider.addEventListener('input', (e) => {
     const totalCycle = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
     if (totalCycle > 0) {
         settings.bpm = Math.round(60 / totalCycle);
-        settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
-        bpmSlider.value = settings.bpm;
-        document.getElementById('bpmValue').textContent = settings.bpm;
-        ratioSlider.value = settings.exhaleRatio;
-        document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+        if (settings.inhaleSeconds > 0) {
+            settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
+            bpmSlider.value = settings.bpm;
+            document.getElementById('bpmValue').textContent = settings.bpm;
+            ratioSlider.value = settings.exhaleRatio;
+            document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+        } else {
+            bpmSlider.value = settings.bpm;
+            document.getElementById('bpmValue').textContent = settings.bpm;
+        }
     }
     saveSettings();
 });
@@ -679,11 +713,16 @@ exhaleSecondsSlider.addEventListener('input', (e) => {
     const totalCycle = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
     if (totalCycle > 0) {
         settings.bpm = Math.round(60 / totalCycle);
-        settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
-        bpmSlider.value = settings.bpm;
-        document.getElementById('bpmValue').textContent = settings.bpm;
-        ratioSlider.value = settings.exhaleRatio;
-        document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+        if (settings.inhaleSeconds > 0) {
+            settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
+            bpmSlider.value = settings.bpm;
+            document.getElementById('bpmValue').textContent = settings.bpm;
+            ratioSlider.value = settings.exhaleRatio;
+            document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
+        } else {
+            bpmSlider.value = settings.bpm;
+            document.getElementById('bpmValue').textContent = settings.bpm;
+        }
     }
     saveSettings();
 });
@@ -754,12 +793,61 @@ intervalSlider.addEventListener('input', (e) => {
     saveSettings();
 });
 
+function applyPreset(name) {
+    if (name === 'mindful') {
+        // Mindful / calm breathing: 6 BPM, 4 / 0 / 6 / 0
+        settings.bpm = 6;
+        settings.exhaleRatio = 1.5;
+        settings.inhaleSeconds = 4;
+        settings.holdInhale = 0;
+        settings.exhaleSeconds = 6;
+        settings.holdExhale = 0;
+        settings.mode = 'bpm';
+    } else if (name === 'box') {
+        // Box breathing: 4 / 4 / 4 / 4
+        settings.inhaleSeconds = 4;
+        settings.holdInhale = 4;
+        settings.exhaleSeconds = 4;
+        settings.holdExhale = 4;
+        const total = settings.inhaleSeconds + settings.holdInhale + settings.exhaleSeconds + settings.holdExhale;
+        if (total > 0) {
+            settings.bpm = Math.round(60 / total);
+        } else {
+            settings.bpm = 4;
+        }
+        if (settings.inhaleSeconds > 0) {
+            settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
+        } else {
+            settings.exhaleRatio = 1;
+        }
+        settings.mode = 'seconds';
+    }
+
+    updateUIFromSettings();
+    saveSettings();
+}
+
+if (presetMindfulBtn) {
+    presetMindfulBtn.addEventListener('click', () => {
+        applyPreset('mindful');
+        updateLayoutForSettings();
+    });
+}
+
+if (presetBoxBtn) {
+    presetBoxBtn.addEventListener('click', () => {
+        applyPreset('box');
+        updateLayoutForSettings();
+    });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     updateUIFromSettings();
     // Show settings panel by default on load
     settingsPanel.classList.add('open');
+    updateLayoutForSettings();
     
     // Preload voices for speech synthesis
     if ('speechSynthesis' in window) {
@@ -769,6 +857,8 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 });
+
+window.addEventListener('resize', updateLayoutForSettings);
 
 // Handle visibility change to pause when tab is hidden
 document.addEventListener('visibilitychange', () => {
