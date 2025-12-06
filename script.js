@@ -425,10 +425,7 @@ function updateBreathingGraph(durations, timestamp = performance.now()) {
     }
 
     const currentTime = getCurrentGraphTime(timestamp);
-    const anchorRatio = Math.min(
-        GRAPH_ANCHOR_TARGET,
-        GRAPH_ANCHOR_TARGET * Math.min(currentTime / GRAPH_ANCHOR_RAMP_SECONDS, 1)
-    );
+    const anchorRatio = GRAPH_ANCHOR_TARGET;
     const anchorX = width * anchorRatio;
     if (breathingGraphDot) {
         breathingGraphDot.style.left = `${anchorRatio * 100}%`;
@@ -1149,6 +1146,18 @@ function applyPresetFromConfig(preset) {
     saveSettings();
 }
 
+function syncSessionAfterSettingsChange() {
+    if (state.isRunning && !state.isPaused) {
+        state.currentPhase = 'inhale';
+        state.phaseStartTime = null;
+        state.graphAccumulated = 0;
+        state.graphStartTime = performance.now();
+        transitionToPhase('inhale');
+    }
+
+    renderGraphWithCurrentSettings();
+}
+
 function renderPresetButtons() {
     if (!presetButtonsContainer || !Array.isArray(loadedPresets)) return;
 
@@ -1235,6 +1244,7 @@ function renderPresetButtons() {
             btn.addEventListener('click', () => {
                 closeAllTooltips();
                 applyPresetFromConfig(preset);
+                syncSessionAfterSettingsChange();
                 updateLayoutForSettings();
             });
 
