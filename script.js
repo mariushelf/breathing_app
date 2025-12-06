@@ -7,7 +7,9 @@ const state = {
     animationFrame: null,
     phaseStartTime: null,
     timerInterval: null,
-    lastIntervalNotification: 0
+    lastIntervalNotification: 0,
+    graphStartTime: null,
+    graphAccumulated: 0
 };
 
 // Settings with defaults
@@ -39,6 +41,10 @@ const settingsPanel = document.getElementById('settingsPanel');
 const settingsToggle = document.getElementById('settingsToggle');
 const notification = document.getElementById('notification');
 const mainContainer = document.querySelector('.main-container');
+const breathingGraph = document.getElementById('breathingGraph');
+const breathingGraphDot = document.getElementById('breathingGraphDot');
+const breathingGraphContainer = document.getElementById('breathingGraphContainer');
+const graphCtx = breathingGraph ? breathingGraph.getContext('2d') : null;
 
 // Sliders
 const bpmSlider = document.getElementById('bpmSlider');
@@ -55,6 +61,13 @@ const presetButtonsContainer = document.getElementById('presetButtonsContainer')
 
 // Presets loaded from YAML
 let loadedPresets = [];
+
+// Graph config
+const GRAPH_ANCHOR_TARGET = 0.2;
+const GRAPH_ANCHOR_RAMP_SECONDS = 1.2;
+const GRAPH_CYCLES_VISIBLE = 2;
+const GRAPH_PADDING = 12;
+const graphCanvasSize = { width: 0, height: 0 };
 
 // Pattern display removed; mode is now internal-only
 
@@ -330,6 +343,138 @@ function formatCountdownSeconds(value) {
     return Math.max(0, Math.ceil(value)).toString();
 }
 
+function getCurrentGraphTime(timestamp = performance.now()) {
+    let time = state.graphAccumulated;
+    if (state.graphStartTime != null) {
+        time += (timestamp - state.graphStartTime) / 1000;
+    }
+    return time;
+}
+
+function resizeGraphCanvas() {
+    if (!breathingGraph || !breathingGraphContainer || !graphCtx) return;
+
+    const rect = breathingGraphContainer.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const targetWidth = Math.max(rect.width, 0);
+    const targetHeight = Math.max(rect.height, 0);
+
+    if (graphCanvasSize.width === targetWidth && graphCanvasSize.height === targetHeight && breathingGraph.width === targetWidth * dpr) {
+        return;
+    }
+
+    graphCanvasSize.width = targetWidth;
+    graphCanvasSize.height = targetHeight;
+
+    breathingGraph.width = targetWidth * dpr;
+    breathingGraph.height = targetHeight * dpr;
+    graphCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    graphCtx.clearRect(0, 0, targetWidth, targetHeight);
+}
+
+function getBreathValueAt(timeSec, durations, totalCycle) {
+    if (!durations) {
+        durations = calculatePhaseDurations();
+    }
+
+    if (!totalCycle) {
+        totalCycle = durations.inhale + durations.holdInhale + durations.exhale + durations.holdExhale;
+    }
+
+    if (totalCycle <= 0) return 0.5;
+
+    let t = ((timeSec % totalCycle) + totalCycle) % totalCycle;
+
+    if (t < durations.inhale) {
+        return easeInOutSine(t / Math.max(durations.inhale, 0.001));
+    }
+
+    t -= durations.inhale;
+    if (t < durations.holdInhale) {
+        return 1;
+    }
+
+    t -= durations.holdInhale;
+    if (t < durations.exhale) {
+        return 1 - easeInOutSine(t / Math.max(durations.exhale, 0.001));
+    }
+
+    return 0; // hold exhale
+}
+
+function updateBreathingGraph(durations, timestamp = performance.now()) {
+    if (!graphCtx || !breathingGraphContainer) return;
+
+    resizeGraphCanvas();
+    const width = graphCanvasSize.width;
+    const height = graphCanvasSize.height;
+    if (width === 0 || height === 0) return;
+
+    if (!durations) {
+        durations = calculatePhaseDurations();
+    }
+
+    const totalCycle = durations.inhale + durations.holdInhale + durations.exhale + durations.holdExhale;
+    graphCtx.clearRect(0, 0, width, height);
+
+    if (totalCycle <= 0) {
+        if (breathingGraphDot) {
+            breathingGraphDot.style.top = `${height / 2}px`;
+        }
+        return;
+    }
+
+    const currentTime = getCurrentGraphTime(timestamp);
+    const anchorRatio = Math.min(
+        GRAPH_ANCHOR_TARGET,
+        GRAPH_ANCHOR_TARGET * Math.min(currentTime / GRAPH_ANCHOR_RAMP_SECONDS, 1)
+    );
+    const anchorX = width * anchorRatio;
+    if (breathingGraphDot) {
+        breathingGraphDot.style.left = `${anchorRatio * 100}%`;
+    }
+
+    const secondsPerPixel = (totalCycle * GRAPH_CYCLES_VISIBLE) / Math.max(width, 1);
+    const innerHeight = Math.max(height - GRAPH_PADDING * 2, 1);
+
+    graphCtx.lineWidth = 2;
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    graphCtx.beginPath();
+
+    const step = 2;
+    for (let x = 0; x <= width; x += step) {
+        const sampleTime = currentTime + (x - anchorX) * secondsPerPixel;
+        const value = getBreathValueAt(sampleTime, durations, totalCycle);
+        const y = GRAPH_PADDING + (1 - value) * innerHeight;
+
+        if (x === 0) {
+            graphCtx.moveTo(x, y);
+        } else {
+            graphCtx.lineTo(x, y);
+        }
+    }
+    graphCtx.stroke();
+
+    // Anchor line at the dot
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    graphCtx.setLineDash([4, 8]);
+    graphCtx.beginPath();
+    graphCtx.moveTo(anchorX, 0);
+    graphCtx.lineTo(anchorX, height);
+    graphCtx.stroke();
+    graphCtx.setLineDash([]);
+
+    const dotValue = getBreathValueAt(currentTime, durations, totalCycle);
+    const dotY = GRAPH_PADDING + (1 - dotValue) * innerHeight;
+    if (breathingGraphDot) {
+        breathingGraphDot.style.top = `${dotY}px`;
+    }
+}
+
+function renderGraphWithCurrentSettings(timestamp = performance.now()) {
+    updateBreathingGraph(calculatePhaseDurations(), timestamp);
+}
+
 // Animation loop
 function animate(timestamp) {
     if (!state.isRunning || state.isPaused) return;
@@ -394,6 +539,8 @@ function animate(timestamp) {
     
     // Apply scale
     breathingCircle.style.transform = `scale(${scale})`;
+
+    updateBreathingGraph(durations, timestamp);
     
     // Check for phase transition
     if (elapsed >= phaseDuration) {
@@ -469,6 +616,7 @@ function startSession() {
         // Resume from pause
         state.isPaused = false;
         state.phaseStartTime = null;
+        state.graphStartTime = performance.now();
         startBtn.textContent = 'Pause';
         breathingCircle.classList.add('animating');
         state.animationFrame = requestAnimationFrame(animate);
@@ -481,14 +629,18 @@ function startSession() {
     state.currentPhase = 'inhale';
     state.elapsedSeconds = 0;
     state.lastIntervalNotification = 0;
-    
+    state.graphAccumulated = 0;
+    state.graphStartTime = performance.now();
+
     startBtn.textContent = 'Pause';
     breathingCircle.classList.add('animating');
     
     // Close settings panel when starting
     settingsPanel.classList.remove('open');
     updateLayoutForSettings();
-    
+
+    renderGraphWithCurrentSettings();
+
     transitionToPhase('inhale');
     state.animationFrame = requestAnimationFrame(animate);
     startTimer();
@@ -498,6 +650,9 @@ function startSession() {
 function pauseSession() {
     state.isPaused = true;
     startBtn.textContent = 'Resume';
+
+    state.graphAccumulated = getCurrentGraphTime();
+    state.graphStartTime = null;
     
     if (state.animationFrame) {
         cancelAnimationFrame(state.animationFrame);
@@ -514,6 +669,8 @@ function resetSession() {
     state.elapsedSeconds = 0;
     state.phaseStartTime = null;
     state.lastIntervalNotification = 0;
+    state.graphStartTime = null;
+    state.graphAccumulated = 0;
     
     if (state.animationFrame) {
         cancelAnimationFrame(state.animationFrame);
@@ -530,6 +687,8 @@ function resetSession() {
         phaseCountdown.textContent = '';
     }
     breathingCircle.classList.remove('animating');
+
+    renderGraphWithCurrentSettings();
 }
 
 // Timer functions
@@ -583,6 +742,8 @@ function saveSettings() {
     const expiryDate = new Date();
     expiryDate.setFullYear(expiryDate.getFullYear() + 1);
     document.cookie = `breathworkSettings=${encodeURIComponent(cookieValue)};expires=${expiryDate.toUTCString()};path=/;SameSite=Lax`;
+
+    renderGraphWithCurrentSettings();
 }
 
 function loadSettings() {
@@ -627,6 +788,8 @@ function updateUIFromSettings() {
     
     intervalSlider.value = settings.intervalMinutes;
     document.getElementById('intervalValue').textContent = settings.intervalMinutes;
+
+    renderGraphWithCurrentSettings();
 }
 
 // Event Listeners
@@ -835,6 +998,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show settings panel by default on load
     settingsPanel.classList.add('open');
     updateLayoutForSettings();
+    resizeGraphCanvas();
+    renderGraphWithCurrentSettings();
 
     // Load breathing presets from YAML and render buttons
     loadPresetsFromYaml();
@@ -848,7 +1013,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.addEventListener('resize', updateLayoutForSettings);
+window.addEventListener('resize', () => {
+    updateLayoutForSettings();
+    resizeGraphCanvas();
+    renderGraphWithCurrentSettings();
+});
 
 // Handle visibility change to pause when tab is hidden
 document.addEventListener('visibilitychange', () => {
