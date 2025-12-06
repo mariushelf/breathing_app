@@ -992,8 +992,6 @@ intervalSlider.addEventListener('input', (e) => {
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
     updateUIFromSettings();
-    // Show settings panel by default on load
-    settingsPanel.classList.add('open');
     updateLayoutForSettings();
     resizeGraphCanvas();
     renderGraphWithCurrentSettings();
