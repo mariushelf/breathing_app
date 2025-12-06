@@ -35,29 +35,51 @@
         </div>
     </div>
 
-    <div class="settings-panel" id="settingsPanel">
-        <div class="settings-toggle" id="settingsToggle">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="18 15 12 9 6 15"></polyline>
-            </svg>
-            <span>Settings</span>
+    <div class="floating-actions">
+        <button class="fab btn-primary" id="presetsFab">Presets</button>
+        <button class="audio-pill" id="audioBtn">Audio</button>
+    </div>
+
+    <div class="sheet-overlay" id="settingsOverlay"></div>
+    <div class="settings-panel presets-sheet" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="presetsTitle">
+        <div class="sheet-handle"></div>
+        <div class="sheet-header">
+            <div class="sheet-title">
+                <p class="eyebrow">Quick setup</p>
+                <h3 id="presetsTitle">Presets</h3>
+            </div>
+            <button class="close-btn" id="presetsCloseBtn" aria-label="Close presets">&times;</button>
         </div>
 
-        <div class="settings-content">
+        <div class="preset-buttons" id="presetButtonsContainer">
+            <!-- Preset buttons are generated dynamically from presets.yaml -->
+        </div>
+
+        <div class="setting-item">
+            <label>Breaths per Minute</label>
+            <input type="range" id="bpmSlider" min="2" max="60" value="6">
+            <div class="setting-value"><span id="bpmValue">6</span> BPM</div>
+        </div>
+
+        <div class="sheet-actions">
+            <button class="btn btn-secondary" id="customizeBtn">Advanced controls</button>
+            <button class="btn btn-primary" id="presetsGoBtn">Go</button>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="customizeModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Rhythm</p>
+                    <h3>Advanced controls</h3>
+                </div>
+                <button class="close-btn" id="customizeCloseBtn" aria-label="Close advanced controls">&times;</button>
+            </div>
+
             <div class="settings-grid">
                 <div class="setting-group">
                     <h3>Breathing Rhythm</h3>
-
-                    <div class="setting-item">
-                        <label>Breaths per Minute</label>
-                        <input type="range" id="bpmSlider" min="2" max="60" value="6">
-                        <div class="setting-value"><span id="bpmValue">6</span> BPM</div>
-                    </div>
-                    <div class="setting-item">
-                        <label>Exhale to Inhale Ratio</label>
-                        <input type="range" id="ratioSlider" min="0.5" max="3" step="0.1" value="1.5">
-                        <div class="setting-value">1:<span id="ratioValue">1.5</span></div>
-                    </div>
 
                     <div class="setting-item">
                         <label>Inhale Duration (s)</label>
@@ -82,38 +104,53 @@
                         <input type="range" id="holdExhaleSlider" min="0" max="30" step="0.5" value="0">
                         <div class="setting-value"><span id="holdExhaleValue">0</span>s</div>
                     </div>
+
+                    <div class="setting-item ratio-readonly">
+                        <label>Current Ratio</label>
+                        <div class="setting-value" id="ratioDisplay">1:1.5</div>
+                    </div>
                 </div>
 
-                <div class="setting-group">
-                    <h3>Presets</h3>
-                    <div class="setting-item preset-buttons" id="presetButtonsContainer">
-                        <!-- Preset buttons are generated dynamically from presets.yaml -->
-                    </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="customizeDoneBtn">Close</button>
+                <button class="btn btn-primary" id="customizeSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-backdrop" id="audioModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Cues</p>
+                    <h3>Audio settings</h3>
+                </div>
+                <button class="close-btn" id="audioCloseBtn" aria-label="Close audio settings">&times;</button>
+            </div>
+
+            <div class="setting-group">
+                <div class="setting-item toggle-switch">
+                    <label>Breathing Sounds</label>
+                    <input type="checkbox" id="breathingSoundsToggle" checked>
+                    <label class="toggle-slider" for="breathingSoundsToggle"></label>
+                </div>
+                <div class="setting-item toggle-switch">
+                    <label>Chime Sounds</label>
+                    <input type="checkbox" id="chimeToggle" checked>
+                    <label class="toggle-slider" for="chimeToggle"></label>
+                </div>
+                <div class="setting-item toggle-switch">
+                    <label>Voice Guidance</label>
+                    <input type="checkbox" id="voiceToggle" checked>
+                    <label class="toggle-slider" for="voiceToggle"></label>
                 </div>
 
-                <div class="setting-group">
-                    <h3>Audio & Notifications</h3>
-                    <div class="setting-item toggle-switch">
-                        <label>Breathing Sounds</label>
-                        <input type="checkbox" id="breathingSoundsToggle" checked>
-                        <label class="toggle-slider" for="breathingSoundsToggle"></label>
-                    </div>
-                    <div class="setting-item toggle-switch">
-                        <label>Chime Sounds</label>
-                        <input type="checkbox" id="chimeToggle" checked>
-                        <label class="toggle-slider" for="chimeToggle"></label>
-                    </div>
-                    <div class="setting-item toggle-switch">
-                        <label>Voice Guidance</label>
-                        <input type="checkbox" id="voiceToggle" checked>
-                        <label class="toggle-slider" for="voiceToggle"></label>
-                    </div>
-
-                    <div class="setting-item">
-                        <label>Interval Reminder (minutes)</label>
-                        <input type="range" id="intervalSlider" min="0" max="10" step="1" value="1">
-                        <div class="setting-value"><span id="intervalValue">1</span> min (0 = off)</div>
-                    </div>
+                <div class="setting-item">
+                    <label>Interval Reminder (minutes)</label>
+                    <input type="range" id="intervalSlider" min="0" max="10" step="1" value="1">
+                    <div class="setting-value"><span id="intervalValue">1</span> min (0 = off)</div>
                 </div>
             </div>
         </div>

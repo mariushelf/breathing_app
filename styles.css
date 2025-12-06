@@ -216,25 +216,75 @@ body {
     opacity: 1;
 }
 
-/* Settings Panel */
+/* Floating quick controls */
+.floating-actions {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 150;
+}
+
+.fab {
+    padding: 16px 22px;
+    border-radius: 16px;
+    font-size: 1rem;
+    box-shadow: 0 14px 30px rgba(255, 107, 107, 0.45);
+}
+
+.audio-pill {
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-size: 0.9rem;
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.audio-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.22);
+}
+
+.sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 120;
+}
+
+.sheet-overlay.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Settings Panel as centered modal */
 .settings-panel {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(20px);
-    border-radius: 20px 20px 0 0;
-    box-shadow: 0 -4px 30px rgba(0, 0, 0, 0.2);
-    transform: translateY(calc(100% - 50px));
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 100;
-    max-height: 65vh;
-    overflow-y: auto;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(10px) scale(0.98);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 130;
 }
 
 .settings-panel.open {
-    transform: translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
 }
 
 .settings-toggle {
@@ -257,9 +307,138 @@ body {
     transform: rotate(180deg);
 }
 
-.settings-content {
-    padding: 0 30px 30px;
+
+.presets-sheet {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
     color: #333;
+    background: #ffffff;
+    border-radius: 22px;
+    padding: 24px 26px 30px;
+    width: min(960px, 94vw);
+    max-height: 80vh;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+    overflow-y: auto;
+}
+
+.sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.sheet-title h3 {
+    color: #5d4037;
+    font-size: 1.2rem;
+}
+
+.eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.75rem;
+    color: #aa6a2c;
+}
+
+.sheet-handle {
+    width: 52px;
+    height: 6px;
+    border-radius: 999px;
+    background: rgba(0,0,0,0.12);
+    margin: 0 auto 12px;
+}
+
+.sheet-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.sheet-actions .btn-secondary {
+    background: #ffe8d6;
+    color: #7a2f00;
+    border: 1px solid #f08c42;
+    box-shadow: 0 4px 12px rgba(240, 140, 66, 0.25);
+}
+
+.sheet-actions .btn-secondary:hover {
+    background: #ffd9b8;
+}
+
+.close-btn {
+    background: rgba(0, 0, 0, 0.05);
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: #5d4037;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.close-btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+    z-index: 200;
+}
+
+.modal-backdrop.open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-card {
+    background: #ffffff;
+    color: #333;
+    border-radius: 20px;
+    padding: 22px;
+    width: min(520px, 90vw);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transform: translateY(20px);
+    transition: transform 0.25s ease;
+}
+
+.modal-backdrop.open .modal-card {
+    transform: translateY(0);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.ratio-readonly .setting-value {
+    color: #5d4037;
 }
 
 .settings-grid {
@@ -309,6 +488,18 @@ body {
     align-items: center;
     gap: 10px;
     text-transform: none;
+}
+
+.preset-buttons .preset-btn.selected {
+    background: #ff7b42;
+    color: #ffffff;
+    border: 1px solid #e36524;
+    box-shadow: 0 0 0 3px rgba(255, 123, 66, 0.25), 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.preset-buttons .preset-btn.selected .preset-info-icon {
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
 }
 
 .preset-buttons .preset-btn:hover {

@@ -39,7 +39,18 @@ const instructionText = document.getElementById('instructionText');
 const startBtn = document.getElementById('startBtn');
 const resetBtn = document.getElementById('resetBtn');
 const settingsPanel = document.getElementById('settingsPanel');
-const settingsToggle = document.getElementById('settingsToggle');
+const settingsOverlay = document.getElementById('settingsOverlay');
+const presetsFab = document.getElementById('presetsFab');
+const presetsCloseBtn = document.getElementById('presetsCloseBtn');
+const customizeBtn = document.getElementById('customizeBtn');
+const customizeModal = document.getElementById('customizeModal');
+const customizeCloseBtn = document.getElementById('customizeCloseBtn');
+const customizeDoneBtn = document.getElementById('customizeDoneBtn');
+const customizeSaveBtn = document.getElementById('customizeSaveBtn');
+const presetsGoBtn = document.getElementById('presetsGoBtn');
+const audioBtn = document.getElementById('audioBtn');
+const audioModal = document.getElementById('audioModal');
+const audioCloseBtn = document.getElementById('audioCloseBtn');
 const notification = document.getElementById('notification');
 const mainContainer = document.querySelector('.main-container');
 const breathingGraph = document.getElementById('breathingGraph');
@@ -49,7 +60,6 @@ const graphCtx = breathingGraph ? breathingGraph.getContext('2d') : null;
 
 // Sliders
 const bpmSlider = document.getElementById('bpmSlider');
-const ratioSlider = document.getElementById('ratioSlider');
 const inhaleSecondsSlider = document.getElementById('inhaleSecondsSlider');
 const exhaleSecondsSlider = document.getElementById('exhaleSecondsSlider');
 const holdInhaleSlider = document.getElementById('holdInhaleSlider');
@@ -59,9 +69,11 @@ const chimeToggle = document.getElementById('chimeToggle');
 const voiceToggle = document.getElementById('voiceToggle');
 const intervalSlider = document.getElementById('intervalSlider');
 const presetButtonsContainer = document.getElementById('presetButtonsContainer');
+const ratioDisplay = document.getElementById('ratioDisplay');
 
 // Presets loaded from YAML
 let loadedPresets = [];
+let selectedPresetId = null;
 
 // Graph config
 const GRAPH_ANCHOR_TARGET = 0.2;
@@ -311,24 +323,8 @@ function calculatePhaseDurations() {
 // Layout: keep breathing bubble + controls vertically centered
 // in the space not occupied by the settings panel
 function updateLayoutForSettings() {
-    if (!mainContainer || !settingsPanel || !settingsToggle) return;
-
-    const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
-    const isOpen = settingsPanel.classList.contains('open');
-
-    let occupiedHeight;
-    if (isOpen) {
-        occupiedHeight = settingsPanel.getBoundingClientRect().height;
-    } else {
-        occupiedHeight = settingsToggle.getBoundingClientRect().height;
-    }
-
-    const availableHeight = Math.max(viewportHeight - occupiedHeight, 0);
-    const mainRect = mainContainer.getBoundingClientRect();
-    const mainHeight = mainRect.height;
-
-    const marginTop = Math.max((availableHeight - mainHeight) / 2, 20);
-    mainContainer.style.marginTop = `${marginTop}px`;
+    if (!mainContainer) return;
+    mainContainer.style.marginTop = '20px';
     mainContainer.style.marginBottom = '20px';
 }
 
@@ -338,6 +334,18 @@ function formatSeconds(value) {
         return Math.round(rounded).toString();
     }
     return rounded.toFixed(1);
+}
+
+function formatRatio(value) {
+    const safe = Math.max(value || 0, 0.1);
+    const rounded = Math.round(safe * 10) / 10;
+    return rounded.toString().replace(/\.0$/, '');
+}
+
+function updateRatioDisplay() {
+    if (!ratioDisplay) return;
+    const ratio = settings.inhaleSeconds > 0 ? (settings.exhaleSeconds / settings.inhaleSeconds) : settings.exhaleRatio;
+    ratioDisplay.textContent = `1:${formatRatio(ratio)}`;
 }
 
 function formatCountdownSeconds(value) {
@@ -641,9 +649,11 @@ function startSession() {
 
     startBtn.textContent = 'Pause';
     breathingCircle.classList.add('animating');
-    
-    // Close settings panel when starting
-    settingsPanel.classList.remove('open');
+
+    // Close any open sheets/modals when starting
+    closePresetsSheet();
+    closeModal(customizeModal);
+    closeModal(audioModal);
     updateLayoutForSettings();
 
     renderGraphWithCurrentSettings();
@@ -768,6 +778,7 @@ function loadSettings() {
             try {
                 const saved = JSON.parse(decodeURIComponent(value));
                 settings = { ...settings, ...saved };
+                selectedPresetId = settings.selectedPresetId || null;
             } catch (e) {
                 console.log('Could not parse saved settings');
             }
@@ -776,14 +787,31 @@ function loadSettings() {
     }
 }
 
+function setSelectedPreset(presetId, { save = true } = {}) {
+    selectedPresetId = presetId;
+    settings.selectedPresetId = presetId;
+    updatePresetSelectionHighlight();
+    if (save) {
+        saveSettings();
+    }
+}
+
+function updatePresetSelectionHighlight() {
+    if (!presetButtonsContainer) return;
+    presetButtonsContainer.querySelectorAll('.preset-btn').forEach((btn) => {
+        const id = btn.getAttribute('data-preset-id');
+        if (id === selectedPresetId) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+}
+
 // Update UI from settings
 function updateUIFromSettings() {
     bpmSlider.value = settings.bpm;
     document.getElementById('bpmValue').textContent = settings.bpm;
-    
-    ratioSlider.value = settings.exhaleRatio;
-    document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
-
     inhaleSecondsSlider.value = settings.inhaleSeconds;
     document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
 
@@ -799,11 +827,30 @@ function updateUIFromSettings() {
     breathingSoundsToggle.checked = settings.breathingSoundsEnabled;
     chimeToggle.checked = settings.chimeEnabled;
     voiceToggle.checked = settings.voiceEnabled;
-    
+
     intervalSlider.value = settings.intervalMinutes;
     document.getElementById('intervalValue').textContent = settings.intervalMinutes;
 
+    updateRatioDisplay();
     renderGraphWithCurrentSettings();
+}
+
+function openPresetsSheet() {
+    if (settingsPanel) settingsPanel.classList.add('open');
+    if (settingsOverlay) settingsOverlay.classList.add('show');
+}
+
+function closePresetsSheet() {
+    if (settingsPanel) settingsPanel.classList.remove('open');
+    if (settingsOverlay) settingsOverlay.classList.remove('show');
+}
+
+function openModal(modalEl) {
+    if (modalEl) modalEl.classList.add('open');
+}
+
+function closeModal(modalEl) {
+    if (modalEl) modalEl.classList.remove('open');
 }
 
 // Event Listeners
@@ -816,10 +863,58 @@ startBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', resetSession);
+presetsFab?.addEventListener('click', () => {
+    openPresetsSheet();
+});
 
-settingsToggle.addEventListener('click', () => {
-    settingsPanel.classList.toggle('open');
-    updateLayoutForSettings();
+presetsCloseBtn?.addEventListener('click', () => {
+    closePresetsSheet();
+});
+
+settingsOverlay?.addEventListener('click', () => {
+    closePresetsSheet();
+});
+
+customizeBtn?.addEventListener('click', () => {
+    openPresetsSheet();
+    setSelectedPreset('custom');
+    openModal(customizeModal);
+});
+
+customizeCloseBtn?.addEventListener('click', () => {
+    closeModal(customizeModal);
+    openPresetsSheet();
+});
+customizeDoneBtn?.addEventListener('click', () => {
+    closeModal(customizeModal);
+    openPresetsSheet();
+});
+customizeSaveBtn?.addEventListener('click', () => {
+    setSelectedPreset('custom', { save: false });
+    saveSettings();
+    syncSessionAfterSettingsChange();
+    showNotification('Advanced settings saved');
+    closeModal(customizeModal);
+    openPresetsSheet();
+});
+customizeModal?.addEventListener('click', (e) => {
+    if (e.target === customizeModal) {
+        closeModal(customizeModal);
+        openPresetsSheet();
+    }
+});
+
+audioBtn?.addEventListener('click', () => openModal(audioModal));
+audioCloseBtn?.addEventListener('click', () => closeModal(audioModal));
+audioModal?.addEventListener('click', (e) => {
+    if (e.target === audioModal) {
+        closeModal(audioModal);
+    }
+});
+
+presetsGoBtn?.addEventListener('click', () => {
+    closePresetsSheet();
+    startSession();
 });
 
 // Settings change handlers
@@ -852,40 +947,9 @@ bpmSlider.addEventListener('input', (e) => {
     // keep exhaleRatio in sync with seconds
     if (settings.inhaleSeconds > 0) {
         settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
-        ratioSlider.value = settings.exhaleRatio;
-        document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
     }
 
-    saveSettings();
-});
-
-ratioSlider.addEventListener('input', (e) => {
-    settings.exhaleRatio = parseFloat(e.target.value);
-    document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
-    // When ratio is adjusted, prefer BPM mode and recompute inhale/exhale while keeping total cycle
-    settings.mode = 'bpm';
-
-    const totalCycle = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
-    const breathingTime = Math.max(totalCycle - (settings.holdInhale + settings.holdExhale), 0.5);
-    const safeRatio = Math.max(settings.exhaleRatio, 0.1);
-    const inhaleTime = breathingTime / (1 + safeRatio);
-    const exhaleTime = inhaleTime * safeRatio;
-
-    settings.inhaleSeconds = inhaleTime;
-    settings.exhaleSeconds = exhaleTime;
-
-    inhaleSecondsSlider.value = settings.inhaleSeconds;
-    document.getElementById('inhaleSecondsValue').textContent = formatSeconds(settings.inhaleSeconds);
-    exhaleSecondsSlider.value = settings.exhaleSeconds;
-    document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
-
-    if (totalCycle > 0) {
-        const newTotal = settings.inhaleSeconds + settings.exhaleSeconds + settings.holdInhale + settings.holdExhale;
-        settings.bpm = Math.round(60 / newTotal);
-        bpmSlider.value = settings.bpm;
-        document.getElementById('bpmValue').textContent = settings.bpm;
-    }
-
+    updateRatioDisplay();
     saveSettings();
 });
 
@@ -904,13 +968,12 @@ inhaleSecondsSlider.addEventListener('input', (e) => {
             settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
             bpmSlider.value = settings.bpm;
             document.getElementById('bpmValue').textContent = settings.bpm;
-            ratioSlider.value = settings.exhaleRatio;
-            document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
         } else {
             bpmSlider.value = settings.bpm;
             document.getElementById('bpmValue').textContent = settings.bpm;
         }
     }
+    updateRatioDisplay();
     saveSettings();
 });
 
@@ -929,13 +992,12 @@ exhaleSecondsSlider.addEventListener('input', (e) => {
             settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
             bpmSlider.value = settings.bpm;
             document.getElementById('bpmValue').textContent = settings.bpm;
-            ratioSlider.value = settings.exhaleRatio;
-            document.getElementById('ratioValue').textContent = settings.exhaleRatio.toFixed(1).replace(/\.0$/, '');
         } else {
             bpmSlider.value = settings.bpm;
             document.getElementById('bpmValue').textContent = settings.bpm;
         }
     }
+    updateRatioDisplay();
     saveSettings();
 });
 
@@ -957,6 +1019,7 @@ holdInhaleSlider.addEventListener('input', (e) => {
         exhaleSecondsSlider.value = settings.exhaleSeconds;
         document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
     }
+    updateRatioDisplay();
     saveSettings();
 });
 
@@ -978,6 +1041,7 @@ holdExhaleSlider.addEventListener('input', (e) => {
         exhaleSecondsSlider.value = settings.exhaleSeconds;
         document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
     }
+    updateRatioDisplay();
     saveSettings();
 });
 
@@ -1012,6 +1076,9 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLayoutForSettings();
     resizeGraphCanvas();
     renderGraphWithCurrentSettings();
+
+    // Show presets sheet on load for quick access
+    openPresetsSheet();
 
     // Load breathing presets from YAML and render buttons
     loadPresetsFromYaml();
@@ -1157,6 +1224,7 @@ function applyPresetFromConfig(preset) {
         settings.mode = 'seconds';
     }
 
+    updateRatioDisplay();
     updateUIFromSettings();
     saveSettings();
 }
@@ -1194,6 +1262,86 @@ function renderPresetButtons() {
         });
     };
 
+    const createPresetButton = (preset, onClick) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary preset-btn';
+        btn.setAttribute('data-preset-id', preset.id || '');
+        if (preset.description) {
+            btn.title = preset.description; // native tooltip fallback
+        }
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'preset-label';
+        labelSpan.textContent = preset.label || preset.id;
+        btn.appendChild(labelSpan);
+
+        const tooltip = document.createElement('span');
+        tooltip.className = 'preset-tooltip';
+        tooltip.textContent = preset.description || '';
+        btn.appendChild(tooltip);
+
+        const infoIcon = document.createElement('span');
+        infoIcon.className = 'preset-info-icon';
+        infoIcon.setAttribute('role', 'button');
+        infoIcon.setAttribute('tabindex', '0');
+        infoIcon.setAttribute('aria-label', `More info about ${preset.label || preset.id}`);
+        infoIcon.textContent = 'i';
+
+        infoIcon.addEventListener('click', (event) => {
+            event.stopPropagation();
+            const isOpen = btn.classList.contains('show-tooltip');
+            closeAllTooltips();
+            if (!isOpen) {
+                btn.classList.add('show-tooltip');
+                if (btn._tooltipTimeout) {
+                    clearTimeout(btn._tooltipTimeout);
+                }
+                btn._tooltipTimeout = setTimeout(() => {
+                    btn.classList.remove('show-tooltip');
+                }, 4000);
+            }
+        });
+
+        infoIcon.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                infoIcon.click();
+            }
+        });
+
+        btn.appendChild(infoIcon);
+
+        btn.addEventListener('click', () => {
+            closeAllTooltips();
+            if (onClick) {
+                onClick();
+                return;
+            }
+            setSelectedPreset(preset.id || '', { save: false });
+            applyPresetFromConfig(preset);
+            syncSessionAfterSettingsChange();
+            updateLayoutForSettings();
+        });
+
+        return btn;
+    };
+
+    const customButton = createPresetButton(
+        {
+            id: 'custom',
+            label: 'Custom',
+            description: 'Open advanced controls to fine-tune a preset',
+        },
+        () => {
+            setSelectedPreset('custom');
+            openPresetsSheet();
+            openModal(customizeModal);
+        }
+    );
+    customButton.classList.add('preset-btn-custom');
+    presetButtonsContainer.appendChild(customButton);
+
     byCategory.forEach((presets, category) => {
         const groupWrapper = document.createElement('div');
         groupWrapper.className = 'preset-category-group';
@@ -1207,68 +1355,15 @@ function renderPresetButtons() {
         row.className = 'preset-category-row';
 
         presets.forEach((preset) => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'btn btn-secondary preset-btn';
-            btn.setAttribute('data-preset-id', preset.id || '');
-            if (preset.description) {
-                btn.title = preset.description; // native tooltip fallback
-            }
-
-            const labelSpan = document.createElement('span');
-            labelSpan.className = 'preset-label';
-            labelSpan.textContent = preset.label || preset.id;
-            btn.appendChild(labelSpan);
-
-            const tooltip = document.createElement('span');
-            tooltip.className = 'preset-tooltip';
-            tooltip.textContent = preset.description || '';
-            btn.appendChild(tooltip);
-
-            const infoIcon = document.createElement('span');
-            infoIcon.className = 'preset-info-icon';
-            infoIcon.setAttribute('role', 'button');
-            infoIcon.setAttribute('tabindex', '0');
-            infoIcon.setAttribute('aria-label', `More info about ${preset.label || preset.id}`);
-            infoIcon.textContent = 'i';
-
-            infoIcon.addEventListener('click', (event) => {
-                event.stopPropagation();
-                const isOpen = btn.classList.contains('show-tooltip');
-                closeAllTooltips();
-                if (!isOpen) {
-                    btn.classList.add('show-tooltip');
-                    if (btn._tooltipTimeout) {
-                        clearTimeout(btn._tooltipTimeout);
-                    }
-                    btn._tooltipTimeout = setTimeout(() => {
-                        btn.classList.remove('show-tooltip');
-                    }, 4000);
-                }
-            });
-
-            infoIcon.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    infoIcon.click();
-                }
-            });
-
-            btn.appendChild(infoIcon);
-
-            btn.addEventListener('click', () => {
-                closeAllTooltips();
-                applyPresetFromConfig(preset);
-                syncSessionAfterSettingsChange();
-                updateLayoutForSettings();
-            });
-
+            const btn = createPresetButton(preset);
             row.appendChild(btn);
         });
 
         groupWrapper.appendChild(row);
         presetButtonsContainer.appendChild(groupWrapper);
     });
+
+    updatePresetSelectionHighlight();
 }
 
 async function loadPresetsFromYaml() {
