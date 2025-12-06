@@ -56,6 +56,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-direction: column;
+    gap: 4px;
+    position: relative;
 }
 
 .breathing-circle.animating {
@@ -90,6 +93,27 @@ body {
     text-transform: uppercase;
     letter-spacing: 2px;
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.5);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 100%;
+    text-align: center;
+}
+
+.phase-countdown {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: rgba(93, 64, 55, 0.85);
+    letter-spacing: 1px;
+    text-shadow: 0 1px 1px rgba(255, 255, 255, 0.35);
+    min-height: 1.1em;
+    position: absolute;
+    left: 50%;
+    top: calc(50% + 1.25rem);
+    transform: translateX(-50%);
+    width: 100%;
+    text-align: center;
 }
 
 .timer-display {
@@ -235,8 +259,8 @@ body {
 
 .preset-buttons {
     display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .preset-buttons .preset-btn {
@@ -248,10 +272,114 @@ body {
     color: #5d4037;
     border: 1px solid rgba(255, 152, 0, 0.4);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-transform: none;
 }
 
 .preset-buttons .preset-btn:hover {
     background: #ffe7d0;
+}
+
+/* Tooltip for preset descriptions */
+.preset-btn {
+    position: relative;
+}
+
+.preset-label {
+    flex: 1;
+    text-align: left;
+}
+
+.preset-tooltip {
+    position: absolute;
+    bottom: 110%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(15, 23, 42, 0.97); /* very dark slate for strong contrast */
+    color: #f9fafb;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    max-width: 320px;
+    text-transform: none;
+    letter-spacing: normal;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.45);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+    z-index: 20;
+}
+
+.preset-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 6px;
+    border-style: solid;
+    border-color: rgba(15, 23, 42, 0.97) transparent transparent transparent;
+}
+
+.preset-btn:hover .preset-tooltip,
+.preset-btn:focus-visible .preset-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -4px);
+}
+
+.preset-btn.show-tooltip .preset-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -4px);
+}
+
+.preset-info-icon {
+    border: none;
+    background: rgba(255, 152, 0, 0.12);
+    color: #aa6a2c;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.8rem;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.preset-info-icon:hover,
+.preset-info-icon:focus-visible {
+    background: rgba(255, 152, 0, 0.22);
+    color: #8b4f1a;
+    outline: none;
+}
+
+.preset-category-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.preset-category-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #aa6a2c;
+}
+
+.preset-category-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .setting-item label {

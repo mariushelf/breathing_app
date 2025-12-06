@@ -16,6 +16,7 @@
             <div class="glow-ring"></div>
             <div class="breathing-circle" id="breathingCircle">
                 <span class="phase-text" id="phaseText">Ready</span>
+                <span class="phase-countdown" id="phaseCountdown"></span>
             </div>
         </div>
 
@@ -80,9 +81,8 @@
 
                 <div class="setting-group">
                     <h3>Presets</h3>
-                    <div class="setting-item preset-buttons">
-                        <button class="btn btn-secondary preset-btn" id="presetMindful">Mindful (4-0-6-0)</button>
-                        <button class="btn btn-secondary preset-btn" id="presetBox">Box (4-4-4-4)</button>
+                    <div class="setting-item preset-buttons" id="presetButtonsContainer">
+                        <!-- Preset buttons are generated dynamically from presets.yaml -->
                     </div>
                 </div>
 

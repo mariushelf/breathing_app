@@ -1,0 +1,94 @@
+presets:
+  - id: functional
+    label: "Functional Breathing"
+    category: "Calm & Sleep"
+    inhale: 4
+    holdInhale: 0
+    exhale: 6
+    holdExhale: 0
+    mode: bpm
+    description: "Functional, light 6 BPM rhythm for everyday calm and steady focus."
+
+  - id: box
+    label: "Box Breathing"
+    category: "Focus & Energy"
+    inhale: 4
+    holdInhale: 4
+    exhale: 4
+    holdExhale: 4
+    mode: seconds
+    description: "Classic box breathing pattern for steady calm and focus."
+
+  # Physiological & Stress Relief
+  - id: physiological_sigh
+    label: "Physiological Sigh"
+    category: "Calm & Sleep"
+    inhale: 4
+    holdInhale: 2
+    exhale: 8
+    holdExhale: 0
+    mode: seconds
+    description: "Quick stress relief pattern popularized by neuroscience; great for rapid anxiety reduction."
+
+  - id: four_7_8
+    label: "4-7-8 Breathing"
+    category: "Calm & Sleep"
+    inhale: 4
+    holdInhale: 7
+    exhale: 8
+    holdExhale: 0
+    mode: seconds
+    description: "Deep relaxation technique often used before sleep to quiet the nervous system."
+
+  # Energy & Focus
+  - id: energizing
+    label: "Energizing Breath"
+    category: "Focus & Energy"
+    inhale: 6
+    holdInhale: 2
+    exhale: 4
+    holdExhale: 0
+    mode: seconds
+    description: "Longer inhale than exhale to gently boost alertness and energy."
+
+  - id: coherent
+    label: "Coherent Breathing"
+    category: "Focus & Energy"
+    inhale: 5
+    holdInhale: 0
+    exhale: 5
+    holdExhale: 0
+    mode: seconds
+    description: "Balanced 5-5 rhythm (about 6 breaths per minute) supporting heart-rate variability."
+
+  # Deep Relaxation
+  - id: extended_exhale
+    label: "Extended Exhale"
+    category: "Calm & Sleep"
+    inhale: 3
+    holdInhale: 0
+    exhale: 6
+    holdExhale: 2
+    mode: seconds
+    description: "Emphasizes the exhale to activate the parasympathetic system; ideal for winding down."
+
+  - id: tactical
+    label: "Tactical Breathing"
+    category: "Focus & Energy"
+    inhale: 4
+    holdInhale: 4
+    exhale: 4
+    holdExhale: 2
+    mode: seconds
+    description: "Used by performers and first responders to stay steady under pressure."
+
+  # Advanced
+  - id: triangle
+    label: "Triangle Breathing"
+    category: "Focus & Energy"
+    inhale: 4
+    holdInhale: 4
+    exhale: 4
+    holdExhale: 0
+    mode: seconds
+    description: "Three-phase pattern (inhale-hold-exhale) that is simpler than full box breathing."

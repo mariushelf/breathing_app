@@ -30,6 +30,7 @@ let settings = {
 // DOM Elements
 const breathingCircle = document.getElementById('breathingCircle');
 const phaseText = document.getElementById('phaseText');
+const phaseCountdown = document.getElementById('phaseCountdown');
 const timerDisplay = document.getElementById('timerDisplay');
 const instructionText = document.getElementById('instructionText');
 const startBtn = document.getElementById('startBtn');
@@ -50,8 +51,10 @@ const breathingSoundsToggle = document.getElementById('breathingSoundsToggle');
 const chimeToggle = document.getElementById('chimeToggle');
 const voiceToggle = document.getElementById('voiceToggle');
 const intervalSlider = document.getElementById('intervalSlider');
-const presetMindfulBtn = document.getElementById('presetMindful');
-const presetBoxBtn = document.getElementById('presetBox');
+const presetButtonsContainer = document.getElementById('presetButtonsContainer');
+
+// Presets loaded from YAML
+let loadedPresets = [];
 
 // Pattern display removed; mode is now internal-only
 
@@ -323,6 +326,10 @@ function formatSeconds(value) {
     return rounded.toFixed(1);
 }
 
+function formatCountdownSeconds(value) {
+    return Math.max(0, Math.ceil(value)).toString();
+}
+
 // Animation loop
 function animate(timestamp) {
     if (!state.isRunning || state.isPaused) return;
@@ -337,6 +344,7 @@ function animate(timestamp) {
     let phaseDuration;
     let nextPhase;
     let scale;
+    let remaining = 0;
     
     switch (state.currentPhase) {
         case 'inhale':
@@ -351,7 +359,8 @@ function animate(timestamp) {
         case 'holdInhale':
             phaseDuration = durations.holdInhale;
             nextPhase = 'exhale';
-            scale = 1.8; // Stay expanded
+            const inhaleHoldOscillation = 0.02 * Math.sin(timestamp / 400);
+            scale = 1.8 * (1 + inhaleHoldOscillation); // Stay expanded with gentle movement
             break;
             
         case 'exhale':
@@ -365,11 +374,22 @@ function animate(timestamp) {
         case 'holdExhale':
             phaseDuration = durations.holdExhale;
             nextPhase = 'inhale';
-            scale = 1; // Stay contracted
+            const exhaleHoldOscillation = 0.02 * Math.sin(timestamp / 400);
+            scale = 1 * (1 + exhaleHoldOscillation); // Stay contracted with gentle movement
             break;
             
         default:
             scale = 1;
+    }
+
+    const isHoldPhase = state.currentPhase === 'holdInhale' || state.currentPhase === 'holdExhale';
+    if (typeof phaseDuration === 'number' && isFinite(phaseDuration)) {
+        remaining = Math.max(phaseDuration - elapsed, 0);
+        if (phaseCountdown) {
+            phaseCountdown.textContent = isHoldPhase ? formatCountdownSeconds(remaining) : '';
+        }
+    } else if (phaseCountdown) {
+        phaseCountdown.textContent = '';
     }
     
     // Apply scale
@@ -412,6 +432,18 @@ function transitionToPhase(phase) {
     
     // Get phase durations for breathing sounds
     const durations = calculatePhaseDurations();
+    if (phaseCountdown) {
+        if (phase === 'holdInhale' || phase === 'holdExhale') {
+            const phaseDurationMap = {
+                holdInhale: durations.holdInhale,
+                holdExhale: durations.holdExhale
+            };
+            const initialCountdown = phaseDurationMap[phase];
+            phaseCountdown.textContent = initialCountdown !== undefined ? formatCountdownSeconds(initialCountdown) : '';
+        } else {
+            phaseCountdown.textContent = '';
+        }
+    }
     
     // Play sounds and voice
     if (phase === 'inhale') {
@@ -494,6 +526,9 @@ function resetSession() {
     timerDisplay.textContent = '00:00';
     instructionText.textContent = 'Press Start to begin your breathing journey';
     breathingCircle.style.transform = 'scale(1)';
+    if (phaseCountdown) {
+        phaseCountdown.textContent = '';
+    }
     breathingCircle.classList.remove('animating');
 }
 
@@ -793,54 +828,6 @@ intervalSlider.addEventListener('input', (e) => {
     saveSettings();
 });
 
-function applyPreset(name) {
-    if (name === 'mindful') {
-        // Mindful / calm breathing: 6 BPM, 4 / 0 / 6 / 0
-        settings.bpm = 6;
-        settings.exhaleRatio = 1.5;
-        settings.inhaleSeconds = 4;
-        settings.holdInhale = 0;
-        settings.exhaleSeconds = 6;
-        settings.holdExhale = 0;
-        settings.mode = 'bpm';
-    } else if (name === 'box') {
-        // Box breathing: 4 / 4 / 4 / 4
-        settings.inhaleSeconds = 4;
-        settings.holdInhale = 4;
-        settings.exhaleSeconds = 4;
-        settings.holdExhale = 4;
-        const total = settings.inhaleSeconds + settings.holdInhale + settings.exhaleSeconds + settings.holdExhale;
-        if (total > 0) {
-            settings.bpm = Math.round(60 / total);
-        } else {
-            settings.bpm = 4;
-        }
-        if (settings.inhaleSeconds > 0) {
-            settings.exhaleRatio = settings.exhaleSeconds / settings.inhaleSeconds;
-        } else {
-            settings.exhaleRatio = 1;
-        }
-        settings.mode = 'seconds';
-    }
-
-    updateUIFromSettings();
-    saveSettings();
-}
-
-if (presetMindfulBtn) {
-    presetMindfulBtn.addEventListener('click', () => {
-        applyPreset('mindful');
-        updateLayoutForSettings();
-    });
-}
-
-if (presetBoxBtn) {
-    presetBoxBtn.addEventListener('click', () => {
-        applyPreset('box');
-        updateLayoutForSettings();
-    });
-}
-
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings();
@@ -848,7 +835,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show settings panel by default on load
     settingsPanel.classList.add('open');
     updateLayoutForSettings();
-    
+
+    // Load breathing presets from YAML and render buttons
+    loadPresetsFromYaml();
+
     // Preload voices for speech synthesis
     if ('speechSynthesis' in window) {
         speechSynthesis.getVoices();
@@ -867,3 +857,237 @@ document.addEventListener('visibilitychange', () => {
         // pauseSession();
     }
 });
+
+// -----------------------------
+// Preset configuration (YAML)
+// -----------------------------
+
+function parseYamlValue(raw) {
+    if (!raw) return '';
+    // Strip surrounding quotes if present
+    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
+        return raw.slice(1, -1);
+    }
+    if (/^-?\d+(\.\d+)?$/.test(raw)) {
+        return parseFloat(raw);
+    }
+    if (raw === 'true') return true;
+    if (raw === 'false') return false;
+    return raw;
+}
+
+// Very small, purpose-built YAML reader for the presets.yaml format used here.
+// It supports a single top-level key `presets:` with a list of `- key: value` maps.
+function parsePresetsYaml(yamlText) {
+    const lines = yamlText.split(/\r?\n/);
+    const presets = [];
+    let inPresetsList = false;
+    let current = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        if (!rawLine) continue;
+
+        const trimmedStart = rawLine.trimStart();
+        const trimmed = rawLine.trim();
+
+        // Skip comments and blank lines
+        if (!trimmed || trimmedStart.startsWith('#')) continue;
+
+        if (!inPresetsList) {
+            if (trimmed === 'presets:' || trimmed.startsWith('presets:')) {
+                inPresetsList = true;
+            }
+            continue;
+        }
+
+        // New item in list
+        if (trimmedStart.startsWith('- ')) {
+            if (current) {
+                presets.push(current);
+            }
+            current = {};
+
+            const rest = trimmedStart.slice(2).trim();
+            if (rest) {
+                const idx = rest.indexOf(':');
+                if (idx !== -1) {
+                    const key = rest.slice(0, idx).trim();
+                    const val = rest.slice(idx + 1).trim();
+                    current[key] = parseYamlValue(val);
+                }
+            }
+            continue;
+        }
+
+        // Continuation key/value lines for current item (indented)
+        if (current && (rawLine.startsWith('  ') || rawLine.startsWith('\t'))) {
+            const line = trimmedStart; // remove leading base indentation
+            const idx = line.indexOf(':');
+            if (idx !== -1) {
+                const key = line.slice(0, idx).trim();
+                const val = line.slice(idx + 1).trim();
+                current[key] = parseYamlValue(val);
+            }
+            continue;
+        }
+
+        // Any other top-level content ends the presets section
+        if (current) {
+            presets.push(current);
+            current = null;
+        }
+        break;
+    }
+
+    if (current) {
+        presets.push(current);
+    }
+
+    return presets;
+}
+
+function applyPresetFromConfig(preset) {
+    if (!preset) return;
+
+    const inhale = Number(preset.inhale) || 0;
+    const holdInhale = Number(preset.holdInhale) || 0;
+    const exhale = Number(preset.exhale) || 0;
+    const holdExhale = Number(preset.holdExhale) || 0;
+
+    settings.inhaleSeconds = inhale;
+    settings.holdInhale = holdInhale;
+    settings.exhaleSeconds = exhale;
+    settings.holdExhale = holdExhale;
+
+    const total = inhale + holdInhale + exhale + holdExhale;
+    if (total > 0) {
+        settings.bpm = Math.round(60 / total);
+    }
+
+    if (inhale > 0) {
+        settings.exhaleRatio = exhale > 0 ? exhale / inhale : 1;
+    }
+
+    // Allow YAML to force a mode, otherwise infer from pattern
+    if (preset.mode === 'bpm' || preset.mode === 'seconds') {
+        settings.mode = preset.mode;
+    } else {
+        settings.mode = 'seconds';
+    }
+
+    updateUIFromSettings();
+    saveSettings();
+}
+
+function renderPresetButtons() {
+    if (!presetButtonsContainer || !Array.isArray(loadedPresets)) return;
+
+    // Group by category for a bit of structure
+    const byCategory = new Map();
+    loadedPresets.forEach((p) => {
+        const cat = p.category || 'Presets';
+        if (!byCategory.has(cat)) {
+            byCategory.set(cat, []);
+        }
+        byCategory.get(cat).push(p);
+    });
+
+    presetButtonsContainer.innerHTML = '';
+
+    const closeAllTooltips = () => {
+        presetButtonsContainer.querySelectorAll('.preset-btn.show-tooltip').forEach((btn) => {
+            btn.classList.remove('show-tooltip');
+        });
+    };
+
+    byCategory.forEach((presets, category) => {
+        const groupWrapper = document.createElement('div');
+        groupWrapper.className = 'preset-category-group';
+
+        const heading = document.createElement('div');
+        heading.className = 'preset-category-label';
+        heading.textContent = category;
+        groupWrapper.appendChild(heading);
+
+        const row = document.createElement('div');
+        row.className = 'preset-category-row';
+
+        presets.forEach((preset) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'btn btn-secondary preset-btn';
+            btn.setAttribute('data-preset-id', preset.id || '');
+            if (preset.description) {
+                btn.title = preset.description; // native tooltip fallback
+            }
+
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'preset-label';
+            labelSpan.textContent = preset.label || preset.id;
+            btn.appendChild(labelSpan);
+
+            const tooltip = document.createElement('span');
+            tooltip.className = 'preset-tooltip';
+            tooltip.textContent = preset.description || '';
+            btn.appendChild(tooltip);
+
+            const infoIcon = document.createElement('span');
+            infoIcon.className = 'preset-info-icon';
+            infoIcon.setAttribute('role', 'button');
+            infoIcon.setAttribute('tabindex', '0');
+            infoIcon.setAttribute('aria-label', `More info about ${preset.label || preset.id}`);
+            infoIcon.textContent = 'i';
+
+            infoIcon.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const isOpen = btn.classList.contains('show-tooltip');
+                closeAllTooltips();
+                if (!isOpen) {
+                    btn.classList.add('show-tooltip');
+                    if (btn._tooltipTimeout) {
+                        clearTimeout(btn._tooltipTimeout);
+                    }
+                    btn._tooltipTimeout = setTimeout(() => {
+                        btn.classList.remove('show-tooltip');
+                    }, 4000);
+                }
+            });
+
+            infoIcon.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    infoIcon.click();
+                }
+            });
+
+            btn.appendChild(infoIcon);
+
+            btn.addEventListener('click', () => {
+                closeAllTooltips();
+                applyPresetFromConfig(preset);
+                updateLayoutForSettings();
+            });
+
+            row.appendChild(btn);
+        });
+
+        groupWrapper.appendChild(row);
+        presetButtonsContainer.appendChild(groupWrapper);
+    });
+}
+
+async function loadPresetsFromYaml() {
+    try {
+        const response = await fetch('presets.yaml', { cache: 'no-store' });
+        if (!response.ok) {
+            return;
+        }
+        const text = await response.text();
+        loadedPresets = parsePresetsYaml(text) || [];
+        renderPresetButtons();
+    } catch (e) {
+        // Fail silently; manual controls still work if presets cannot be loaded.
+        console.error('Failed to load presets.yaml', e);
+    }
+}
