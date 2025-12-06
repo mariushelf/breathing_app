@@ -623,6 +623,30 @@ body {
     -webkit-appearance: none;
 }
 
+.bpm-setting {
+    margin-bottom: 6px;
+}
+
+.bpm-setting input[type="range"] {
+    width: calc(100% + 30px);
+    margin-left: -15px;
+    margin-right: -15px;
+}
+
+.rhythm-inline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.rhythm-inline label {
+    margin-bottom: 0;
+}
+
+.rhythm-inline .setting-value {
+    margin-top: 0;
+}
+
 .setting-item input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     width: 20px;

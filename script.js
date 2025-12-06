@@ -57,6 +57,7 @@ const breathingGraph = document.getElementById('breathingGraph');
 const breathingGraphDot = document.getElementById('breathingGraphDot');
 const breathingGraphContainer = document.getElementById('breathingGraphContainer');
 const graphCtx = breathingGraph ? breathingGraph.getContext('2d') : null;
+const quickRhythmDisplay = document.getElementById('quickRhythmDisplay');
 
 // Sliders
 const bpmSlider = document.getElementById('bpmSlider');
@@ -346,6 +347,11 @@ function updateRatioDisplay() {
     if (!ratioDisplay) return;
     const ratio = settings.inhaleSeconds > 0 ? (settings.exhaleSeconds / settings.inhaleSeconds) : settings.exhaleRatio;
     ratioDisplay.textContent = `1:${formatRatio(ratio)}`;
+}
+
+function updateRhythmDisplay() {
+    if (!quickRhythmDisplay) return;
+    quickRhythmDisplay.textContent = `${formatSeconds(settings.inhaleSeconds)}/${formatSeconds(settings.holdInhale)}/${formatSeconds(settings.exhaleSeconds)}/${formatSeconds(settings.holdExhale)}`;
 }
 
 function formatCountdownSeconds(value) {
@@ -832,6 +838,7 @@ function updateUIFromSettings() {
     document.getElementById('intervalValue').textContent = settings.intervalMinutes;
 
     updateRatioDisplay();
+    updateRhythmDisplay();
     renderGraphWithCurrentSettings();
 }
 
@@ -877,7 +884,6 @@ settingsOverlay?.addEventListener('click', () => {
 
 customizeBtn?.addEventListener('click', () => {
     openPresetsSheet();
-    setSelectedPreset('custom');
     openModal(customizeModal);
 });
 
@@ -893,7 +899,7 @@ customizeSaveBtn?.addEventListener('click', () => {
     setSelectedPreset('custom', { save: false });
     saveSettings();
     syncSessionAfterSettingsChange();
-    showNotification('Advanced settings saved');
+    showNotification('Custom settings saved');
     closeModal(customizeModal);
     openPresetsSheet();
 });
@@ -950,6 +956,7 @@ bpmSlider.addEventListener('input', (e) => {
     }
 
     updateRatioDisplay();
+    updateRhythmDisplay();
     saveSettings();
 });
 
@@ -974,6 +981,7 @@ inhaleSecondsSlider.addEventListener('input', (e) => {
         }
     }
     updateRatioDisplay();
+    updateRhythmDisplay();
     saveSettings();
 });
 
@@ -998,6 +1006,7 @@ exhaleSecondsSlider.addEventListener('input', (e) => {
         }
     }
     updateRatioDisplay();
+    updateRhythmDisplay();
     saveSettings();
 });
 
@@ -1020,6 +1029,7 @@ holdInhaleSlider.addEventListener('input', (e) => {
         document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
     }
     updateRatioDisplay();
+    updateRhythmDisplay();
     saveSettings();
 });
 
@@ -1042,6 +1052,7 @@ holdExhaleSlider.addEventListener('input', (e) => {
         document.getElementById('exhaleSecondsValue').textContent = formatSeconds(settings.exhaleSeconds);
     }
     updateRatioDisplay();
+    updateRhythmDisplay();
     saveSettings();
 });
 
@@ -1331,7 +1342,7 @@ function renderPresetButtons() {
         {
             id: 'custom',
             label: 'Custom',
-            description: 'Open advanced controls to fine-tune a preset',
+            description: 'Open customize controls to fine-tune a preset',
         },
         () => {
             setSelectedPreset('custom');

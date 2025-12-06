@@ -55,14 +55,19 @@
             <!-- Preset buttons are generated dynamically from presets.yaml -->
         </div>
 
-        <div class="setting-item">
+        <div class="setting-item bpm-setting">
             <label>Breaths per Minute</label>
             <input type="range" id="bpmSlider" min="2" max="60" value="6">
             <div class="setting-value"><span id="bpmValue">6</span> BPM</div>
         </div>
 
+        <div class="setting-item rhythm-inline">
+            <label>Configured rhythm</label>
+            <div class="setting-value" id="quickRhythmDisplay">4/0/6/0</div>
+        </div>
+
         <div class="sheet-actions">
-            <button class="btn btn-secondary" id="customizeBtn">Advanced controls</button>
+            <button class="btn btn-secondary" id="customizeBtn">Customize</button>
             <button class="btn btn-primary" id="presetsGoBtn">Go</button>
         </div>
     </div>
@@ -72,9 +77,9 @@
             <div class="modal-header">
                 <div>
                     <p class="eyebrow">Rhythm</p>
-                    <h3>Advanced controls</h3>
+                    <h3>Customize</h3>
                 </div>
-                <button class="close-btn" id="customizeCloseBtn" aria-label="Close advanced controls">&times;</button>
+                <button class="close-btn" id="customizeCloseBtn" aria-label="Close customize panel">&times;</button>
             </div>
 
             <div class="settings-grid">
