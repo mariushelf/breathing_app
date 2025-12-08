@@ -1,7 +1,7 @@
 // Graph config
 const GRAPH_ANCHOR_TARGET = 0.2;
 const GRAPH_ANCHOR_RAMP_SECONDS = 1.2;
-const GRAPH_CYCLES_VISIBLE = 2;
+const GRAPH_SECONDS_VISIBLE = 30;
 const GRAPH_PADDING = 12;
 const graphCanvasSize = { width: 0, height: 0 };
 
@@ -90,7 +90,8 @@ function updateBreathingGraph(durations, timestamp) {
 
     graphCtx.clearRect(0, 0, width, height);
 
-    const secondsPerPixel = totalCycle / (GRAPH_CYCLES_VISIBLE * width);
+    const visibleSeconds = GRAPH_SECONDS_VISIBLE || totalCycle;
+    const secondsPerPixel = visibleSeconds / Math.max(width, 1);
     const anchorX = width * GRAPH_ANCHOR_TARGET;
     const anchorTargetTime = currentTime + (anchorX - width) * secondsPerPixel;
     const ramp = Math.min((timestamp - (state.graphStartTime || 0)) / 1000 / GRAPH_ANCHOR_RAMP_SECONDS, 1);
