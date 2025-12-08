@@ -1289,9 +1289,6 @@ function renderPresetButtons() {
         btn.type = 'button';
         btn.className = 'btn btn-secondary preset-btn';
         btn.setAttribute('data-preset-id', preset.id || '');
-        if (preset.description) {
-            btn.title = preset.description; // native tooltip fallback
-        }
 
         const labelSpan = document.createElement('span');
         labelSpan.className = 'preset-label';
