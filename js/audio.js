@@ -128,6 +128,8 @@ function stopBreathingSound() {
 
 // Generate chime sound using Web Audio API
 function playChime(frequency = 440, duration = 0.4) {
+    if (!settings || !settings.chimeEnabled) return;
+
     initAudioContext();
     
     const oscillator = audioContext.createOscillator();
