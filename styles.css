@@ -18,6 +18,10 @@ body {
     overflow-x: hidden;
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 @keyframes gradientShift {
     0% { background-position: 0% 50%; }
     50% { background-position: 100% 50%; }
@@ -309,15 +313,17 @@ body {
 
 
 .presets-sheet {
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: 14px;
     color: #333;
     background: #ffffff;
     border-radius: 22px;
-    padding: 24px 26px 30px;
-    width: min(960px, 94vw);
-    max-height: 80vh;
+    padding: 20px 22px 24px;
+    width: auto;
+    max-width: clamp(520px, 88vw, 760px);
+    max-height: calc(100vh - 96px);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
     overflow-y: auto;
 }
@@ -325,8 +331,9 @@ body {
 .sheet-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 10px;
+    padding-right: 48px;
 }
 
 .sheet-title h3 {
@@ -388,6 +395,18 @@ body {
     transform: translateY(-1px);
 }
 
+.presets-sheet .close-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    box-shadow: none;
+}
+
+.presets-sheet .close-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+
 .modal-backdrop {
     position: fixed;
     inset: 0;
@@ -412,6 +431,8 @@ body {
     border-radius: 20px;
     padding: 22px;
     width: min(520px, 90vw);
+    max-height: calc(100vh - 120px);
+    overflow-y: auto;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
     transform: translateY(20px);
     transition: transform 0.25s ease;

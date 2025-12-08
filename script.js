@@ -842,22 +842,33 @@ function updateUIFromSettings() {
     renderGraphWithCurrentSettings();
 }
 
+function updateBodyModalState() {
+    const anyOpen = (settingsPanel?.classList.contains('open')) ||
+        (customizeModal?.classList.contains('open')) ||
+        (audioModal?.classList.contains('open'));
+    document.body.classList.toggle('modal-open', !!anyOpen);
+}
+
 function openPresetsSheet() {
     if (settingsPanel) settingsPanel.classList.add('open');
     if (settingsOverlay) settingsOverlay.classList.add('show');
+    updateBodyModalState();
 }
 
 function closePresetsSheet() {
     if (settingsPanel) settingsPanel.classList.remove('open');
     if (settingsOverlay) settingsOverlay.classList.remove('show');
+    updateBodyModalState();
 }
 
 function openModal(modalEl) {
     if (modalEl) modalEl.classList.add('open');
+    updateBodyModalState();
 }
 
 function closeModal(modalEl) {
     if (modalEl) modalEl.classList.remove('open');
+    updateBodyModalState();
 }
 
 // Event Listeners
