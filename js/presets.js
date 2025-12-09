@@ -67,6 +67,16 @@ function updatePresetSelectionHighlight() {
     });
 }
 
+function parsePhasePrompt(raw) {
+    if (!raw || typeof raw !== 'object') return { duration: raw, cue: null, voice: null, chime: null };
+    return {
+        duration: raw.duration ?? raw.value,
+        cue: raw.cue ?? null,
+        voice: raw.voice ?? null,
+        chime: raw.chime ?? null
+    };
+}
+
 function applyPresetFromConfig(preset) {
     if (!preset) return;
 
@@ -92,15 +102,30 @@ function applyPresetFromConfig(preset) {
         resetComposableState();
     }
 
-    const inhale = Number(preset.inhale) || 0;
-    const holdInhale = Number(preset.holdInhale) || 0;
-    const exhale = Number(preset.exhale) || 0;
-    const holdExhale = Number(preset.holdExhale) || 0;
+    const inhaleParsed = parsePhasePrompt(preset.inhale);
+    const holdInhaleParsed = parsePhasePrompt(preset.holdInhale);
+    const exhaleParsed = parsePhasePrompt(preset.exhale);
+    const holdExhaleParsed = parsePhasePrompt(preset.holdExhale);
+
+    const inhale = Number(inhaleParsed.duration) || 0;
+    const holdInhale = Number(holdInhaleParsed.duration) || 0;
+    const exhale = Number(exhaleParsed.duration) || 0;
+    const holdExhale = Number(holdExhaleParsed.duration) || 0;
 
     settings.inhaleSeconds = inhale;
     settings.holdInhale = holdInhale;
     settings.exhaleSeconds = exhale;
     settings.holdExhale = holdExhale;
+
+    // Per-phase prompts (for simple mode)
+    if (typeof setSimplePhasePrompts === 'function') {
+        setSimplePhasePrompts({
+            inhale: { cue: inhaleParsed.cue, voice: inhaleParsed.voice, chime: inhaleParsed.chime },
+            holdInhale: { cue: holdInhaleParsed.cue, voice: holdInhaleParsed.voice, chime: holdInhaleParsed.chime },
+            exhale: { cue: exhaleParsed.cue, voice: exhaleParsed.voice, chime: exhaleParsed.chime },
+            holdExhale: { cue: holdExhaleParsed.cue, voice: holdExhaleParsed.voice, chime: holdExhaleParsed.chime }
+        });
+    }
 
     const total = inhale + holdInhale + exhale + holdExhale;
     if (total > 0) {

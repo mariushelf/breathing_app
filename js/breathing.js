@@ -276,6 +276,35 @@ function easeInOutSine(t) {
     return -(Math.cos(Math.PI * t) - 1) / 2;
 }
 
+function createDefaultSimplePhasePrompts() {
+    return {
+        inhale: { cue: null, voice: null, chime: null },
+        holdInhale: { cue: null, voice: null, chime: null },
+        exhale: { cue: null, voice: null, chime: null },
+        holdExhale: { cue: null, voice: null, chime: null }
+    };
+}
+
+let simplePhasePrompts = createDefaultSimplePhasePrompts();
+
+function setSimplePhasePrompts(overrides = {}) {
+    const next = createDefaultSimplePhasePrompts();
+    ['inhale', 'holdInhale', 'exhale', 'holdExhale'].forEach((key) => {
+        if (overrides[key]) {
+            next[key] = {
+                cue: overrides[key].cue ?? null,
+                voice: overrides[key].voice ?? null,
+                chime: overrides[key].chime ?? null
+            };
+        }
+    });
+    simplePhasePrompts = next;
+}
+
+function resetSimplePhasePrompts() {
+    simplePhasePrompts = createDefaultSimplePhasePrompts();
+}
+
 // Transition to a new phase
 function transitionToPhase(phase, anchorSec = getElapsedSeconds()) {
     state.currentPhase = phase;
@@ -290,14 +319,21 @@ function transitionToPhase(phase, anchorSec = getElapsedSeconds()) {
     };
     
     const phaseInstructions = {
-        inhale: 'Breathe in slowly through your nose',
-        holdInhale: 'Hold your breath gently',
-        exhale: 'Release slowly through your mouth',
-        holdExhale: 'Rest before the next breath'
+        inhale: 'Breathe in',
+        holdInhale: 'Hold',
+        exhale: 'Breathe out',
+        holdExhale: 'Hold'
     };
+
+    const prompt = simplePhasePrompts[phase] || {};
+    const cueText = prompt.cue || phaseInstructions[phase];
+    const voiceText = prompt.voice === 'disabled'
+        ? null
+        : (typeof prompt.voice === 'string' ? prompt.voice : cueText);
+    const chimeAllowed = prompt.chime === 'disabled' ? false : true;
     
     phaseText.textContent = phaseNames[phase];
-    instructionText.textContent = phaseInstructions[phase];
+    instructionText.textContent = cueText;
     
     // Get phase durations for breathing sounds
     const durations = calculatePhaseDurations();
@@ -316,16 +352,16 @@ function transitionToPhase(phase, anchorSec = getElapsedSeconds()) {
     
     // Play sounds and voice
     if (phase === 'inhale') {
-        playChime(528, 0.5); // C note
-        speak('Breathe in');
+        if (chimeAllowed) playChime(528, 0.5); // C note
+        if (voiceText) speak(voiceText);
         playInhaleSound(durations.inhale);
     } else if (phase === 'exhale') {
-        playChime(396, 0.5); // G note
-        speak('Breathe out');
+        if (chimeAllowed) playChime(396, 0.5); // G note
+        if (voiceText) speak(voiceText);
         playExhaleSound(durations.exhale);
     } else if (phase === 'holdInhale' || phase === 'holdExhale') {
-        playChime(440, 0.3); // A note
-        speak('Hold');
+        if (chimeAllowed) playChime(440, 0.3); // A note
+        if (voiceText) speak(voiceText);
         stopBreathingSound(); // Stop breathing sound during hold phases
     }
 }

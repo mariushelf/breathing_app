@@ -28,6 +28,34 @@ This document defines the contract for authoring and running presets in `presets
   - `steps: []` — array of primitives and/or nested repeats.
 - Any step may include an optional `id` to allow stable targeting from `configurable` paths.
 
+##### Voice, cue, and chime overrides (long form)
+- Any primitive step may be provided as an object to override prompts:
+  - `duration` (or `value`): numeric seconds or ratio (for BPM blocks); `until_tap` only valid for `hold`
+  - `cue`: text for on-screen instruction
+  - `voice`: custom spoken text, or `disabled` to suppress voice for this step
+  - `chime`: set to `disabled` to mute the chime immediately **before** this step
+
+Examples (both shapes are valid and can mix inside repeat steps):
+
+```
+inhale: 4
+holdInhale: 0
+exhale: 5
+holdExhale: 1
+
+inhale:
+  duration: 4
+  cue: inhale deeply
+holdInhale: 0
+exhale:
+  duration: 5
+  cue: exhale slowly
+holdExhale:
+  duration: 1
+  voice: disabled
+  chime: disabled  # disables chime *before* this step
+```
+
 #### Timing rules
 - A `repeat` with `bpm` treats child `inhale` / `exhale` / `hold` values as ratios. The sum of these ratios defines one cycle of length `60 / bpm` seconds.
 - Without `bpm`, timing values are absolute seconds.
@@ -47,8 +75,12 @@ This document defines the contract for authoring and running presets in `presets
 - The player walks steps in order, supporting nested repeats and `until_tap` interactions.
 - `hold: until_tap`: show/announce “Hold; tap when you are ready”; resume on tap.
 - `repeat.n = until_tap`: loop until a tap signals to advance; finish the current iteration before exiting.
-- Existing inhale/hold/exhale sounds are reused. Only the `until_tap` hold uses the new prompt.
-- Simple presets continue to play as today (single-loop inhale/hold/exhale based on settings).
+- Voice/chime overrides:
+  - `voice: disabled` silences voice for that step.
+  - Custom `voice` text is spoken instead of the default cue; falls back to `cue` when unspecified.
+  - `chime: disabled` suppresses the chime played immediately before that step.
+- Existing inhale/hold/exhale sounds are reused. Only the `until_tap` hold uses the new prompt when present.
+- Simple presets continue to play as today (single-loop inhale/hold/exhale based on settings) but honor per-phase cue/voice/chime overrides when provided.
 
 ### UI / Customize panel binding
 - When a preset is selected:

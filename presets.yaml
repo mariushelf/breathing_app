@@ -5,7 +5,10 @@ presets:
     inhale: 4
     holdInhale: 0
     exhale: 5
-    holdExhale: 1
+    holdExhale:
+      duration: 1
+      voice: disabled
+      chime: disabled
     mode: seconds
     description: "Functional, light 6 BPM rhythm for everyday calm and steady focus."
 

@@ -249,6 +249,27 @@ function resetComposableState() {
     updateCurrentPresetDisplay();
 }
 
+function normalizePrimitivePayload(key, rawVal, ancestorHasBpm) {
+    const isObject = rawVal && typeof rawVal === 'object' && !Array.isArray(rawVal);
+
+    const durationRaw = isObject ? (rawVal.duration ?? rawVal.value) : rawVal;
+
+    if (key !== 'hold' && durationRaw === UNTIL_TAP) {
+        throw new Error('until_tap only valid for hold');
+    }
+
+    const value = durationRaw === UNTIL_TAP ? UNTIL_TAP : Number(durationRaw);
+    if (value !== UNTIL_TAP && (!Number.isFinite(value) || value < 0)) {
+        throw new Error('Duration must be non-negative');
+    }
+
+    const cue = isObject && rawVal.cue ? String(rawVal.cue) : null;
+    const voice = isObject && rawVal.voice !== undefined ? rawVal.voice : null;
+    const chime = isObject && rawVal.chime !== undefined ? rawVal.chime : null;
+
+    return { type: key, value, cue, voice, chime };
+}
+
 function normalizeComposableStep(step, ancestorHasBpm = false) {
     if (!step || typeof step !== 'object') {
         throw new Error('Invalid step');
@@ -330,17 +351,8 @@ function normalizeComposableStep(step, ancestorHasBpm = false) {
         throw new Error('Step must be inhale, exhale, or hold');
     }
 
-    const rawVal = step[key];
-    if (key !== 'hold' && rawVal === UNTIL_TAP) {
-        throw new Error('until_tap only valid for hold');
-    }
-
-    const value = rawVal === UNTIL_TAP ? UNTIL_TAP : Number(rawVal);
-    if (value !== UNTIL_TAP && (!Number.isFinite(value) || value < 0)) {
-        throw new Error('Duration must be non-negative');
-    }
-
-    return { type: key, id, value };
+    const payload = normalizePrimitivePayload(key, step[key], ancestorHasBpm);
+    return { id, ...payload };
 }
 
 function normalizeComposablePreset(preset) {
@@ -452,8 +464,15 @@ function beginComposableStep(step) {
         holdUntilTap: 'Hold; tap when you are ready'
     };
 
+    const prompt = step || {};
+    const cueText = prompt.cue || phaseInstructions[state.currentPhase] || '';
+    const voiceText = prompt.voice === 'disabled'
+        ? null
+        : (typeof prompt.voice === 'string' ? prompt.voice : cueText);
+    const chimeAllowed = prompt.chime === 'disabled' ? false : true;
+
     phaseText.textContent = phaseNames[state.currentPhase] || 'Breath';
-    instructionText.textContent = phaseInstructions[state.currentPhase] || '';
+    instructionText.textContent = cueText;
 
     if (phaseCountdown) {
         if (composableState.currentStepDuration && step.type === 'hold') {
@@ -464,20 +483,20 @@ function beginComposableStep(step) {
     }
 
     if (state.currentPhase === 'inhale') {
-        playChime(528, 0.5);
-        speak('Breathe in');
+        if (chimeAllowed) playChime(528, 0.5);
+        if (voiceText) speak(voiceText);
         playInhaleSound(step.duration || 1);
     } else if (state.currentPhase === 'exhale') {
-        playChime(396, 0.5);
-        speak('Breathe out');
+        if (chimeAllowed) playChime(396, 0.5);
+        if (voiceText) speak(voiceText);
         playExhaleSound(step.duration || 1);
     } else if (state.currentPhase === 'holdUntilTap') {
-        playChime(440, 0.3);
-        speak('Hold; tap when you are ready');
+        if (chimeAllowed) playChime(440, 0.3);
+        if (voiceText) speak(voiceText);
         stopBreathingSound();
     } else if (state.currentPhase === 'hold') {
-        playChime(440, 0.3);
-        speak('Hold');
+        if (chimeAllowed) playChime(440, 0.3);
+        if (voiceText) speak(voiceText);
         stopBreathingSound();
     }
 }
