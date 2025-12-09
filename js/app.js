@@ -458,9 +458,9 @@ function beginComposableStep(step) {
     };
 
     const phaseInstructions = {
-        inhale: 'Breathe in slowly through your nose',
-        exhale: 'Release slowly through your mouth',
-        hold: 'Hold your breath gently',
+        inhale: 'Breathe in',
+        exhale: 'Breathe out',
+        hold: 'Hold',
         holdUntilTap: 'Hold; tap when you are ready'
     };
 
