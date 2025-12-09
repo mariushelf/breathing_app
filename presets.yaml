@@ -4,8 +4,8 @@ presets:
     category: "Calm & Sleep"
     inhale: 4
     holdInhale: 0
-    exhale: 6
-    holdExhale: 0
+    exhale: 5
+    holdExhale: 1
     mode: seconds
     description: "Functional, light 6 BPM rhythm for everyday calm and steady focus."
 
@@ -92,3 +92,31 @@ presets:
     holdExhale: 0
     mode: seconds
     description: "Three-phase pattern (inhale-hold-exhale) that is simpler than full box breathing."
+
+  - id: cyclic_retention
+    label: "Cyclic Retention Breathing"
+    category: "Advanced"
+    description: "Guided cycles with retention: 30 brisk breaths, retention hold, then recovery."
+    steps:
+      - repeat:
+          n: 4
+          steps:
+            - repeat:
+                id: breaths
+                n: 30
+                bpm: 15
+                steps:
+                  - inhale: 4
+                  - exhale: 5
+            - hold: until_tap
+            - inhale: 4
+            - hold: 15
+            - exhale: 8
+            - hold: 5
+    configurable:
+      - path: repeat|n
+        label: Number of rounds
+      - path: repeat|steps|breaths|repeat|n
+        label: Breaths per round
+      - path: repeat|steps|breaths|repeat|bpm
+        label: Breathing pace

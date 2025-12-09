@@ -49,10 +49,10 @@ function calculatePhaseDurations() {
 
 function formatCountdownSeconds(value) {
     const clamped = Math.max(0, value || 0);
-    if (clamped >= 10) {
+    if (clamped >= 3) {
         return Math.round(clamped).toString();
     }
-    return clamped.toFixed(1).replace(/\.0$/, '');
+    return clamped.toFixed(1);
 }
 
 // Breath graph sampling helper
@@ -157,8 +157,108 @@ function updateBreathingGraph(durations, timestamp) {
     }
 }
 
+// Update breathing graph for composable presets using flattened timeline
+function updateComposableBreathingGraph(timestamp) {
+    if (!graphCtx || !breathingGraph || !breathingGraphDot) return;
+    
+    const timeline = composableState.graphTimeline;
+    const totalDuration = composableState.graphTimelineDuration;
+    
+    if (!timeline || timeline.length === 0 || totalDuration <= 0) {
+        // Fallback to simple graph if no timeline
+        const durations = getComposableCycleDurations();
+        updateBreathingGraph(durations, timestamp);
+        return;
+    }
+    
+    const sessionTime = getElapsedSeconds(timestamp);
+    const cycleAnchor = state.cycleAnchorSec || 0;
+    
+    // Get graph time (handles pausing at until_tap holds)
+    let graphTime = getComposableGraphTime(sessionTime - cycleAnchor);
+    
+    const width = graphCanvasSize.width;
+    const height = graphCanvasSize.height;
+    
+    graphCtx.clearRect(0, 0, width, height);
+    
+    const visibleSeconds = GRAPH_SECONDS_VISIBLE;
+    const secondsPerPixel = visibleSeconds / Math.max(width, 1);
+    const anchorX = width * GRAPH_ANCHOR_TARGET;
+    
+    // Ramp for smooth start
+    const ramp = Math.min(Math.max(sessionTime - cycleAnchor, 0) / GRAPH_ANCHOR_RAMP_SECONDS, 1);
+    const anchorTargetTime = graphTime + (anchorX - width) * secondsPerPixel;
+    const currentAnchorTarget = anchorTargetTime * ramp;
+    
+    // Draw axes
+    graphCtx.lineWidth = 1;
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    graphCtx.beginPath();
+    graphCtx.moveTo(0, GRAPH_PADDING);
+    graphCtx.lineTo(width, GRAPH_PADDING);
+    graphCtx.moveTo(0, height - GRAPH_PADDING);
+    graphCtx.lineTo(width, height - GRAPH_PADDING);
+    graphCtx.stroke();
+    
+    // Plot the waveform using timeline
+    const innerHeight = Math.max(height - GRAPH_PADDING * 2, 1);
+    
+    graphCtx.lineWidth = 2;
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    graphCtx.beginPath();
+    
+    const step = 2;
+    for (let x = 0; x <= width; x += step) {
+        const sampleTime = graphTime + (x - anchorX) * secondsPerPixel;
+        const { value } = getBreathValueAtTimeline(sampleTime, timeline, totalDuration);
+        const y = GRAPH_PADDING + (1 - value) * innerHeight;
+        
+        if (x === 0) {
+            graphCtx.moveTo(x, y);
+        } else {
+            graphCtx.lineTo(x, y);
+        }
+    }
+    graphCtx.stroke();
+    
+    // Draw a subtle indicator for timeline end if visible
+    const endX = anchorX + (totalDuration - graphTime) / secondsPerPixel;
+    if (endX > 0 && endX < width) {
+        graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        graphCtx.setLineDash([2, 4]);
+        graphCtx.beginPath();
+        graphCtx.moveTo(endX, 0);
+        graphCtx.lineTo(endX, height);
+        graphCtx.stroke();
+        graphCtx.setLineDash([]);
+    }
+    
+    // Anchor line at the dot
+    graphCtx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    graphCtx.setLineDash([4, 8]);
+    graphCtx.beginPath();
+    graphCtx.moveTo(anchorX, 0);
+    graphCtx.lineTo(anchorX, height);
+    graphCtx.stroke();
+    graphCtx.setLineDash([]);
+    
+    // Position the dot
+    const { value: dotValue } = getBreathValueAtTimeline(graphTime, timeline, totalDuration);
+    const dotY = GRAPH_PADDING + (1 - dotValue) * innerHeight;
+    if (breathingGraphDot) {
+        breathingGraphDot.style.top = `${dotY}px`;
+    }
+}
+
 function renderGraphWithCurrentSettings(timestamp = performance.now()) {
-    updateBreathingGraph(calculatePhaseDurations(), timestamp);
+    // Use composable timeline graph if a composable preset is active with a timeline
+    if (composableState.activePreset !== null && composableState.graphTimeline) {
+        updateComposableBreathingGraph(timestamp);
+    } else {
+        const durations = calculatePhaseDurations();
+        updateBreathingGraph(durations, timestamp);
+    }
 }
 
 function resizeGraphCanvas() {
@@ -234,68 +334,119 @@ function transitionToPhase(phase, anchorSec = getElapsedSeconds()) {
 function animate(timestamp) {
     if (!state.isRunning || state.isPaused) return;
 
-    const durations = calculatePhaseDurations();
     const elapsed = getElapsedSeconds(timestamp) - (state.phaseAnchorSec || 0);
     
     let phaseDuration;
     let nextPhase;
     let scale;
     let remaining = 0;
-    
-    switch (state.currentPhase) {
-        case 'inhale':
-            phaseDuration = durations.inhale;
-            nextPhase = settings.holdInhale > 0 ? 'holdInhale' : 'exhale';
-            // Ease-in-out animation for smooth breathing
-            const inhaleProgress = Math.min(elapsed / phaseDuration, 1);
-            const easedInhale = easeInOutSine(inhaleProgress);
-            scale = 1 + easedInhale * 0.8; // Scale from 1 to 1.8
-            break;
-            
-        case 'holdInhale':
-            phaseDuration = durations.holdInhale;
-            nextPhase = 'exhale';
-            const inhaleHoldOscillation = 0.02 * Math.sin(timestamp / 400);
-            scale = 1.8 * (1 + inhaleHoldOscillation); // Stay expanded with gentle movement
-            break;
-            
-        case 'exhale':
-            phaseDuration = durations.exhale;
-            nextPhase = settings.holdExhale > 0 ? 'holdExhale' : 'inhale';
-            const exhaleProgress = Math.min(elapsed / phaseDuration, 1);
-            const easedExhale = easeInOutSine(exhaleProgress);
-            scale = 1.8 - easedExhale * 0.8; // Scale from 1.8 to 1
-            break;
-            
-        case 'holdExhale':
-            phaseDuration = durations.holdExhale;
-            nextPhase = 'inhale';
-            const exhaleHoldOscillation = 0.02 * Math.sin(timestamp / 400);
-            scale = 1 * (1 + exhaleHoldOscillation); // Stay contracted with gentle movement
-            break;
-            
-        default:
-            scale = 1;
-    }
 
-    const isHoldPhase = state.currentPhase === 'holdInhale' || state.currentPhase === 'holdExhale';
-    if (typeof phaseDuration === 'number' && isFinite(phaseDuration)) {
-        remaining = Math.max(phaseDuration - elapsed, 0);
-        if (phaseCountdown) {
-            phaseCountdown.textContent = isHoldPhase ? formatCountdownSeconds(remaining) : '';
+    // Check if we're running a composable preset
+    const isComposable = composableState.activePreset !== null;
+
+    if (isComposable) {
+        // Composable preset animation
+        const step = composableState.currentStep;
+        phaseDuration = composableState.currentStepDuration;
+
+        switch (state.currentPhase) {
+            case 'inhale': {
+                const progress = phaseDuration > 0 ? Math.min(elapsed / phaseDuration, 1) : 1;
+                const eased = easeInOutSine(progress);
+                scale = 1 + eased * 0.8;
+                break;
+            }
+            case 'exhale': {
+                const progress = phaseDuration > 0 ? Math.min(elapsed / phaseDuration, 1) : 1;
+                const eased = easeInOutSine(progress);
+                scale = 1.8 - eased * 0.8;
+                break;
+            }
+            case 'hold': {
+                const oscillation = 0.02 * Math.sin(timestamp / 400);
+                scale = 1.8 * (1 + oscillation);
+                remaining = phaseDuration > 0 ? Math.max(phaseDuration - elapsed, 0) : 0;
+                if (phaseCountdown && phaseDuration > 0) {
+                    phaseCountdown.textContent = formatCountdownSeconds(remaining);
+                }
+                break;
+            }
+            case 'holdUntilTap': {
+                const oscillation = 0.02 * Math.sin(timestamp / 400);
+                scale = 1 * (1 + oscillation);
+                // No countdown for until_tap
+                break;
+            }
+            default:
+                scale = 1;
         }
-    } else if (phaseCountdown) {
-        phaseCountdown.textContent = '';
-    }
-    
-    // Apply scale
-    breathingCircle.style.transform = `scale(${scale})`;
 
-    updateBreathingGraph(durations, timestamp);
-    
-    // Check for phase transition
-    if (elapsed >= phaseDuration) {
-        transitionToPhase(nextPhase);
+        breathingCircle.style.transform = `scale(${scale})`;
+
+        // Update the breathing graph for composable presets using timeline
+        updateComposableBreathingGraph(timestamp);
+
+        // Check for phase transition (not for holdUntilTap - that waits for user tap)
+        if (state.currentPhase !== 'holdUntilTap' && phaseDuration !== null && elapsed >= phaseDuration) {
+            advanceComposableStep();
+        }
+    } else {
+        // Simple preset animation (original logic)
+        const durations = calculatePhaseDurations();
+        
+        switch (state.currentPhase) {
+            case 'inhale':
+                phaseDuration = durations.inhale;
+                nextPhase = settings.holdInhale > 0 ? 'holdInhale' : 'exhale';
+                const inhaleProgress = Math.min(elapsed / phaseDuration, 1);
+                const easedInhale = easeInOutSine(inhaleProgress);
+                scale = 1 + easedInhale * 0.8;
+                break;
+                
+            case 'holdInhale':
+                phaseDuration = durations.holdInhale;
+                nextPhase = 'exhale';
+                const inhaleHoldOscillation = 0.02 * Math.sin(timestamp / 400);
+                scale = 1.8 * (1 + inhaleHoldOscillation);
+                break;
+                
+            case 'exhale':
+                phaseDuration = durations.exhale;
+                nextPhase = settings.holdExhale > 0 ? 'holdExhale' : 'inhale';
+                const exhaleProgress = Math.min(elapsed / phaseDuration, 1);
+                const easedExhale = easeInOutSine(exhaleProgress);
+                scale = 1.8 - easedExhale * 0.8;
+                break;
+                
+            case 'holdExhale':
+                phaseDuration = durations.holdExhale;
+                nextPhase = 'inhale';
+                const exhaleHoldOscillation = 0.02 * Math.sin(timestamp / 400);
+                scale = 1 * (1 + exhaleHoldOscillation);
+                break;
+                
+            default:
+                scale = 1;
+        }
+
+        const isHoldPhase = state.currentPhase === 'holdInhale' || state.currentPhase === 'holdExhale';
+        if (typeof phaseDuration === 'number' && isFinite(phaseDuration)) {
+            remaining = Math.max(phaseDuration - elapsed, 0);
+            if (phaseCountdown) {
+                phaseCountdown.textContent = isHoldPhase ? formatCountdownSeconds(remaining) : '';
+            }
+        } else if (phaseCountdown) {
+            phaseCountdown.textContent = '';
+        }
+        
+        breathingCircle.style.transform = `scale(${scale})`;
+
+        updateBreathingGraph(durations, timestamp);
+        
+        // Check for phase transition
+        if (elapsed >= phaseDuration) {
+            transitionToPhase(nextPhase);
+        }
     }
     
     state.animationFrame = requestAnimationFrame(animate);

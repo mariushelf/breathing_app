@@ -2,82 +2,6 @@
 let loadedPresets = [];
 let selectedPresetId = null;
 
-function parseYamlValue(raw) {
-    if (!raw) return '';
-    // Strip surrounding quotes if present
-    if ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'"))) {
-        return raw.slice(1, -1);
-    }
-    if (/^-?\d+(\.\d+)?$/.test(raw)) {
-        return parseFloat(raw);
-    }
-    if (raw === 'true') return true;
-    if (raw === 'false') return false;
-    return raw;
-}
-
-// Very small, purpose-built YAML reader for the presets.yaml format used here.
-// It supports a single top-level key `presets:` with a list of `- key: value` maps.
-function parsePresetsYaml(yamlText) {
-    const lines = yamlText.split(/\r?\n/);
-    const presets = [];
-    let inPresetsList = false;
-    let current = null;
-
-    for (let i = 0; i < lines.length; i++) {
-        const rawLine = lines[i];
-        if (!rawLine) continue;
-
-        const trimmedStart = rawLine.trimStart();
-        const trimmed = rawLine.trim();
-
-        // Skip comments and blank lines
-        if (!trimmed || trimmedStart.startsWith('#')) continue;
-
-        if (!inPresetsList) {
-            if (trimmed === 'presets:' || trimmed.startsWith('presets:')) {
-                inPresetsList = true;
-            }
-            continue;
-        }
-
-        // New item in list
-        if (trimmedStart.startsWith('- ')) {
-            if (current) {
-                presets.push(current);
-            }
-            current = {};
-
-            const rest = trimmedStart.slice(2).trim();
-            if (rest) {
-                const idx = rest.indexOf(':');
-                if (idx !== -1) {
-                    const key = rest.slice(0, idx).trim();
-                    const val = rest.slice(idx + 1).trim();
-                    current[key] = parseYamlValue(val);
-                }
-            }
-            continue;
-        }
-
-        // Key-value lines inside a list item
-        if (current) {
-            const idx = trimmedStart.indexOf(':');
-            if (idx !== -1) {
-                const key = trimmedStart.slice(0, idx).trim();
-                const val = trimmedStart.slice(idx + 1).trim();
-                current[key] = parseYamlValue(val);
-            }
-        }
-    }
-
-    if (current) {
-        presets.push(current);
-    }
-
-    return presets;
-}
-
 function loadPresetsFromStorage() {
     if (Array.isArray(settings.savedPresets)) {
         loadedPresets = settings.savedPresets;
@@ -91,8 +15,20 @@ async function loadPresetsFromYaml() {
             throw new Error(`Failed to fetch presets.yaml: ${response.status}`);
         }
         const text = await response.text();
-        loadedPresets = parsePresetsYaml(text) || [];
+        const parsed = jsyaml.load(text);
+        loadedPresets = (parsed && Array.isArray(parsed.presets)) ? parsed.presets : [];
         renderPresetButtons();
+
+        // If a preset was previously selected (including composable ones like WHM),
+        // re-apply it so the graph and session flow match the saved choice.
+        if (selectedPresetId) {
+            const previouslySelected = loadedPresets.find((p) => p.id === selectedPresetId);
+            if (previouslySelected) {
+                setSelectedPreset(previouslySelected.id, { save: false });
+                applyPresetFromConfig(previouslySelected);
+                syncSessionAfterSettingsChange();
+            }
+        }
     } catch (e) {
         console.error('Failed to load presets.yaml', e);
     }
@@ -134,6 +70,28 @@ function updatePresetSelectionHighlight() {
 function applyPresetFromConfig(preset) {
     if (!preset) return;
 
+    // If this is a composable preset, hand off to the composable handler and exit early
+    if (Array.isArray(preset.steps)) {
+        console.log('[DEBUG] Composable preset detected:', preset.id);
+        if (typeof onComposablePresetSelected === 'function') {
+            console.log('[DEBUG] Calling onComposablePresetSelected');
+            onComposablePresetSelected(preset);
+            console.log('[DEBUG] After onComposablePresetSelected, composableState.activePreset:', 
+                typeof composableState !== 'undefined' ? !!composableState.activePreset : 'composableState undefined');
+            if (typeof updateCustomizeModalForPreset === 'function') {
+                updateCustomizeModalForPreset();
+            }
+        } else {
+            console.log('[DEBUG] onComposablePresetSelected is NOT a function!');
+        }
+        return;
+    }
+
+    // Clear any active composable preset when selecting a simple preset
+    if (typeof resetComposableState === 'function') {
+        resetComposableState();
+    }
+
     const inhale = Number(preset.inhale) || 0;
     const holdInhale = Number(preset.holdInhale) || 0;
     const exhale = Number(preset.exhale) || 0;
@@ -162,6 +120,10 @@ function applyPresetFromConfig(preset) {
 
     updateRatioDisplay();
     updateUIFromSettings();
+    updateCurrentPresetDisplay();
+    if (typeof updateCustomizeModalForPreset === 'function') {
+        updateCustomizeModalForPreset();
+    }
     saveSettings();
 }
 
@@ -251,7 +213,8 @@ function renderPresetButtons() {
                 onClick();
                 return;
             }
-            setSelectedPreset(preset.id || '', { save: false });
+            // Persist the selection so composable presets like WHM remain selected after reload
+            setSelectedPreset(preset.id || '', { save: true });
             applyPresetFromConfig(preset);
             syncSessionAfterSettingsChange();
         });
