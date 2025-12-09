@@ -62,6 +62,33 @@ const breathingGraphContainer = document.getElementById('breathingGraphContainer
 const graphCtx = breathingGraph ? breathingGraph.getContext('2d') : null;
 const quickRhythmDisplay = document.getElementById('quickRhythmDisplay');
 
+// Wake Lock
+let wakeLock = null;
+
+async function requestWakeLock() {
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => {
+            wakeLock = null;
+        }, { once: true });
+    } catch (err) {
+        // Silently ignore if wake lock cannot be acquired
+        wakeLock = null;
+    }
+}
+
+async function releaseWakeLock() {
+    if (!wakeLock) return;
+    try {
+        await wakeLock.release();
+    } catch (err) {
+        // ignore
+    } finally {
+        wakeLock = null;
+    }
+}
+
 // Sliders
 const bpmSlider = document.getElementById('bpmSlider');
 const inhaleSecondsSlider = document.getElementById('inhaleSecondsSlider');
@@ -269,6 +296,7 @@ function startSession() {
         state.animationFrame = requestAnimationFrame(animate);
         startTimer();
         instructionText.textContent = 'Tap to pause. Long-press to reset.';
+        requestWakeLock();
         return;
     }
     
@@ -298,6 +326,7 @@ function startSession() {
     state.animationFrame = requestAnimationFrame(animate);
     startTimer();
     instructionText.textContent = 'Tap to pause. Long-press to reset.';
+    requestWakeLock();
 }
 
 function pauseSession() {
@@ -311,6 +340,7 @@ function pauseSession() {
     stopTimer();
     stopAllAudio();
     instructionText.textContent = 'Tap to resume. Long-press to reset.';
+    releaseWakeLock();
 }
 
 function resetSession() {
@@ -337,6 +367,7 @@ function resetSession() {
     stopTimer();
     stopAllAudio();
     updateTimerDisplay();
+    releaseWakeLock();
 
     renderGraphWithCurrentSettings();
 }
@@ -614,4 +645,14 @@ document.addEventListener('visibilitychange', () => {
         // Optionally pause when tab is hidden
         // pauseSession();
     }
+
+    if (!document.hidden && state.isRunning && !state.isPaused) {
+        // Re-request wake lock when returning to the tab
+        requestWakeLock();
+    }
+});
+
+// Release wake lock when leaving the page
+window.addEventListener('beforeunload', () => {
+    releaseWakeLock();
 });
