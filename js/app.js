@@ -38,8 +38,6 @@ const phaseText = document.getElementById('phaseText');
 const phaseCountdown = document.getElementById('phaseCountdown');
 const timerDisplay = document.getElementById('timerDisplay');
 const instructionText = document.getElementById('instructionText');
-const startBtn = document.getElementById('startBtn');
-const resetBtn = document.getElementById('resetBtn');
 const settingsPanel = document.getElementById('settingsPanel');
 const settingsOverlay = document.getElementById('settingsOverlay');
 const presetsFab = document.getElementById('presetsFab');
@@ -267,10 +265,10 @@ function startSession() {
             state.pauseStartedAt = null;
         }
         state.pausedPhaseElapsed = 0;
-        startBtn.textContent = 'Pause';
         breathingCircle.classList.add('animating');
         state.animationFrame = requestAnimationFrame(animate);
         startTimer();
+        instructionText.textContent = 'Tap to pause. Long-press to reset.';
         return;
     }
     
@@ -286,7 +284,6 @@ function startSession() {
     state.cycleAnchorSec = 0;
     state.pausedPhaseElapsed = 0;
 
-    startBtn.textContent = 'Pause';
     breathingCircle.classList.add('animating');
 
     // Close any open sheets/modals when starting
@@ -300,11 +297,11 @@ function startSession() {
     transitionToPhase('inhale', 0);
     state.animationFrame = requestAnimationFrame(animate);
     startTimer();
+    instructionText.textContent = 'Tap to pause. Long-press to reset.';
 }
 
 function pauseSession() {
     state.isPaused = true;
-    startBtn.textContent = 'Resume';
     breathingCircle.classList.remove('animating');
     if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
     state.animationFrame = null;
@@ -313,6 +310,7 @@ function pauseSession() {
     state.pausedPhaseElapsed = getElapsedSeconds(now) - state.phaseAnchorSec;
     stopTimer();
     stopAllAudio();
+    instructionText.textContent = 'Tap to resume. Long-press to reset.';
 }
 
 function resetSession() {
@@ -328,11 +326,10 @@ function resetSession() {
     state.cycleAnchorSec = 0;
     state.pausedPhaseElapsed = 0;
 
-    startBtn.textContent = 'Start';
     breathingCircle.classList.remove('animating');
     breathingCircle.style.transform = 'scale(1)';
     phaseText.textContent = 'Ready';
-    instructionText.textContent = 'Press Start to begin your breathing journey';
+    instructionText.textContent = 'Tap the circle or graph to begin.';
     phaseCountdown.textContent = '';
 
     if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
@@ -344,16 +341,49 @@ function resetSession() {
     renderGraphWithCurrentSettings();
 }
 
-// Event Listeners
-startBtn.addEventListener('click', () => {
+// Tap + long-press controls on primary surfaces
+const TAP_TARGETS = [breathingCircle, breathingGraphContainer];
+const LONG_PRESS_MS = 700;
+let resetTimer = null;
+let resetTriggered = false;
+
+function clearResetTimer() {
+    if (resetTimer) {
+        clearTimeout(resetTimer);
+        resetTimer = null;
+    }
+}
+
+function scheduleReset() {
+    resetTriggered = false;
+    clearResetTimer();
+    resetTimer = setTimeout(() => {
+        resetTriggered = true;
+        resetSession();
+    }, LONG_PRESS_MS);
+}
+
+function handleTapToggle() {
+    if (resetTriggered) {
+        resetTriggered = false;
+        return;
+    }
     if (!state.isRunning || state.isPaused) {
         startSession();
     } else {
         pauseSession();
     }
-});
+}
 
-resetBtn.addEventListener('click', resetSession);
+TAP_TARGETS.forEach((el) => {
+    el?.addEventListener('click', handleTapToggle);
+    el?.addEventListener('pointerdown', scheduleReset);
+    el?.addEventListener('pointerup', () => {
+        clearResetTimer();
+    });
+    el?.addEventListener('pointerleave', clearResetTimer);
+    el?.addEventListener('pointercancel', clearResetTimer);
+});
 morePresetsBtn?.addEventListener('click', () => {
     const isOpen = settingsPanel?.classList.contains('open');
     if (isOpen) {

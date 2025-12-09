@@ -359,7 +359,7 @@ body.modal-open {
     width: min(420px, 80vw);
     max-height: calc(100vh - 24px);
     box-shadow: 0 16px 48px rgba(0, 0, 0, 0.26);
-    overflow-y: auto;
+    overflow: hidden;
     backdrop-filter: blur(8px);
     border-left: 1px solid rgba(0,0,0,0.06);
 }
@@ -537,6 +537,24 @@ body.modal-open {
     display: flex;
     flex-direction: column;
     gap: 12px;
+}
+
+.presets-scroll {
+    overflow-y: auto;
+    padding-right: 4px;
+    margin-right: -4px;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.settings-bottom {
+    position: sticky;
+    bottom: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.86) 0%, #fff 38%);
+    padding-top: 10px;
+    margin-top: 6px;
+    border-top: 1px solid rgba(0,0,0,0.06);
+    box-shadow: 0 -8px 18px rgba(0,0,0,0.06);
 }
 
 .preset-buttons .preset-btn {

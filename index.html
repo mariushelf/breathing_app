@@ -27,12 +27,7 @@
 
         <div class="timer-display" id="timerDisplay">00:00</div>
 
-        <p class="instruction-text" id="instructionText">Press Start to begin your breathing journey</p>
-
-        <div class="controls">
-            <button class="btn btn-primary" id="startBtn">Start</button>
-            <button class="btn btn-secondary" id="resetBtn">Reset</button>
-        </div>
+        <p class="instruction-text" id="instructionText">Tap the circle or graph to begin.</p>
 
         <div class="quick-presets" aria-label="Quick presets">
             <button class="btn btn-chip" data-quick-preset="functional" id="quickPresetFunctional">Functional Breathing</button>
@@ -52,24 +47,28 @@
                 <button class="close-btn" id="presetsCloseBtn" aria-label="Close presets">&times;</button>
             </div>
 
-            <div class="preset-buttons" id="presetButtonsContainer">
-                <!-- Preset buttons are generated dynamically from presets.yaml -->
+            <div class="presets-scroll">
+                <div class="preset-buttons" id="presetButtonsContainer">
+                    <!-- Preset buttons are generated dynamically from presets.yaml -->
+                </div>
             </div>
 
-            <div class="setting-item bpm-setting">
-                <label>Breaths per Minute</label>
-                <input type="range" id="bpmSlider" min="2" max="60" value="6">
-                <div class="setting-value"><span id="bpmValue">6</span> BPM</div>
-            </div>
+            <div class="settings-bottom">
+                <div class="setting-item bpm-setting">
+                    <label>Breaths per Minute</label>
+                    <input type="range" id="bpmSlider" min="2" max="60" value="6">
+                    <div class="setting-value"><span id="bpmValue">6</span> BPM</div>
+                </div>
 
-            <div class="setting-item rhythm-inline">
-                <label>Configured rhythm</label>
-                <div class="setting-value" id="quickRhythmDisplay">4/0/6/0</div>
-            </div>
+                <div class="setting-item rhythm-inline">
+                    <label>Configured rhythm</label>
+                    <div class="setting-value" id="quickRhythmDisplay">4/0/6/0</div>
+                </div>
 
-            <div class="sheet-actions">
-                <button class="btn btn-secondary" id="customizeBtn">Customize</button>
-                <button class="btn btn-primary" id="presetsGoBtn">Go</button>
+                <div class="sheet-actions">
+                    <button class="btn btn-secondary" id="customizeBtn">Customize</button>
+                    <button class="btn btn-primary" id="presetsGoBtn">Go</button>
+                </div>
             </div>
         </div>
     </div>
