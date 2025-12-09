@@ -83,7 +83,7 @@ function updateBreathingGraph(durations, timestamp) {
 
     const { inhale, holdInhale, exhale, holdExhale } = durations;
     const totalCycle = inhale + holdInhale + exhale + holdExhale;
-    const currentTime = ((timestamp - (state.graphStartTime || 0)) / 1000) + (state.graphAccumulated || 0);
+    const currentTime = getElapsedSeconds(timestamp);
 
     const width = graphCanvasSize.width;
     const height = graphCanvasSize.height;
@@ -94,7 +94,7 @@ function updateBreathingGraph(durations, timestamp) {
     const secondsPerPixel = visibleSeconds / Math.max(width, 1);
     const anchorX = width * GRAPH_ANCHOR_TARGET;
     const anchorTargetTime = currentTime + (anchorX - width) * secondsPerPixel;
-    const ramp = Math.min((timestamp - (state.graphStartTime || 0)) / 1000 / GRAPH_ANCHOR_RAMP_SECONDS, 1);
+    const ramp = Math.min(getElapsedSeconds(timestamp) / GRAPH_ANCHOR_RAMP_SECONDS, 1);
     const currentAnchorTarget = anchorTargetTime * ramp;
 
     const graphOffset = currentAnchorTarget;
@@ -171,9 +171,9 @@ function easeInOutSine(t) {
 }
 
 // Transition to a new phase
-function transitionToPhase(phase) {
+function transitionToPhase(phase, anchorSec = getElapsedSeconds()) {
     state.currentPhase = phase;
-    state.phaseStartTime = null;
+    state.phaseAnchorSec = anchorSec;
     state.pausedPhaseElapsed = 0;
     
     const phaseNames = {
@@ -228,16 +228,8 @@ function transitionToPhase(phase) {
 function animate(timestamp) {
     if (!state.isRunning || state.isPaused) return;
 
-    if (state.graphStartTime == null) {
-        state.graphStartTime = timestamp;
-    }
-
-    if (!state.phaseStartTime) {
-        state.phaseStartTime = timestamp;
-    }
-    
     const durations = calculatePhaseDurations();
-    const elapsed = (timestamp - state.phaseStartTime) / 1000;
+    const elapsed = getElapsedSeconds(timestamp) - (state.phaseAnchorSec || 0);
     
     let phaseDuration;
     let nextPhase;

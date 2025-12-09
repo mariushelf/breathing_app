@@ -5,11 +5,12 @@ const state = {
     currentPhase: 'ready', // ready, inhale, holdInhale, exhale, holdExhale
     elapsedSeconds: 0,
     animationFrame: null,
-    phaseStartTime: null,
+    phaseAnchorSec: 0,
+    sessionStartTime: null,
+    totalPausedMs: 0,
+    pauseStartedAt: null,
     timerInterval: null,
     lastIntervalNotification: 0,
-    graphStartTime: null,
-    graphAccumulated: 0,
     pausedPhaseElapsed: 0
 };
 
@@ -92,6 +93,14 @@ function formatRatio(value) {
     const safe = Math.max(value || 0, 0.1);
     const rounded = Math.round(safe * 10) / 10;
     return rounded.toString().replace(/\.0$/, '');
+}
+
+// Unified session clock: seconds since start excluding pauses
+function getElapsedSeconds(nowTs = performance.now()) {
+    if (!state.sessionStartTime) return 0;
+    const pausedMs = state.totalPausedMs + (state.pauseStartedAt ? (nowTs - state.pauseStartedAt) : 0);
+    const elapsedMs = nowTs - state.sessionStartTime - pausedMs;
+    return Math.max(0, elapsedMs / 1000);
 }
 
 function updateRatioDisplay() {
@@ -245,9 +254,10 @@ function startSession() {
         // Resume from pause
         state.isPaused = false;
         const now = performance.now();
-        const pausedOffsetMs = (state.pausedPhaseElapsed || 0) * 1000;
-        state.phaseStartTime = now - pausedOffsetMs;
-        state.graphStartTime = now;
+        if (state.pauseStartedAt) {
+            state.totalPausedMs += now - state.pauseStartedAt;
+            state.pauseStartedAt = null;
+        }
         state.pausedPhaseElapsed = 0;
         startBtn.textContent = 'Pause';
         breathingCircle.classList.add('animating');
@@ -261,8 +271,10 @@ function startSession() {
     state.currentPhase = 'inhale';
     state.elapsedSeconds = 0;
     state.lastIntervalNotification = 0;
-    state.graphAccumulated = 0;
-    state.graphStartTime = null;
+    state.totalPausedMs = 0;
+    state.sessionStartTime = performance.now();
+    state.pauseStartedAt = null;
+    state.phaseAnchorSec = 0;
     state.pausedPhaseElapsed = 0;
 
     startBtn.textContent = 'Pause';
@@ -276,7 +288,7 @@ function startSession() {
 
     renderGraphWithCurrentSettings();
 
-    transitionToPhase('inhale');
+    transitionToPhase('inhale', 0);
     state.animationFrame = requestAnimationFrame(animate);
     startTimer();
 }
@@ -287,10 +299,9 @@ function pauseSession() {
     breathingCircle.classList.remove('animating');
     if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
     state.animationFrame = null;
-    if (state.phaseStartTime) {
-        const elapsed = (performance.now() - state.phaseStartTime) / 1000;
-        state.pausedPhaseElapsed = elapsed;
-    }
+    const now = performance.now();
+    state.pauseStartedAt = now;
+    state.pausedPhaseElapsed = getElapsedSeconds(now) - state.phaseAnchorSec;
     stopTimer();
 }
 
@@ -300,8 +311,10 @@ function resetSession() {
     state.currentPhase = 'ready';
     state.elapsedSeconds = 0;
     state.lastIntervalNotification = 0;
-    state.graphAccumulated = 0;
-    state.graphStartTime = null;
+    state.totalPausedMs = 0;
+    state.sessionStartTime = null;
+    state.pauseStartedAt = null;
+    state.phaseAnchorSec = 0;
     state.pausedPhaseElapsed = 0;
 
     startBtn.textContent = 'Start';

@@ -156,10 +156,8 @@ function applyPresetFromConfig(preset) {
 function syncSessionAfterSettingsChange() {
     if (state.isRunning && !state.isPaused) {
         state.currentPhase = 'inhale';
-        state.phaseStartTime = null;
-        state.graphAccumulated = 0;
-        state.graphStartTime = null;
-        transitionToPhase('inhale');
+        state.phaseAnchorSec = getElapsedSeconds();
+        transitionToPhase('inhale', state.phaseAnchorSec);
     }
 
     renderGraphWithCurrentSettings();
