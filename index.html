@@ -33,21 +33,21 @@
             <button class="btn btn-primary" id="startBtn">Start</button>
             <button class="btn btn-secondary" id="resetBtn">Reset</button>
         </div>
-    </div>
 
-    <div class="floating-actions">
-        <button class="fab btn-primary" id="presetsFab">Presets</button>
-        <button class="audio-pill" id="audioBtn">Audio</button>
+        <div class="quick-presets" aria-label="Quick presets">
+            <button class="btn btn-chip" data-quick-preset="functional" id="quickPresetFunctional">Functional Breathing</button>
+            <button class="btn btn-chip" data-quick-preset="box" id="quickPresetBox">Box Breathing</button>
+            <button class="btn btn-chip more" id="morePresetsBtn" aria-expanded="false" aria-controls="settingsPanel">More ▸</button>
+        </div>
     </div>
 
     <div class="sheet-overlay" id="settingsOverlay"></div>
     <div class="settings-panel" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="presetsTitle">
-        <div class="presets-sheet">
-            <div class="sheet-handle"></div>
+        <div class="presets-sheet side-drawer">
             <div class="sheet-header">
                 <div class="sheet-title">
-                    <p class="eyebrow">Quick setup</p>
-                    <h3 id="presetsTitle">Presets</h3>
+                    <p class="eyebrow">Presets & Quick Setup</p>
+                    <h3 id="presetsTitle">All presets</h3>
                 </div>
                 <button class="close-btn" id="presetsCloseBtn" aria-label="Close presets">&times;</button>
             </div>
@@ -72,6 +72,10 @@
                 <button class="btn btn-primary" id="presetsGoBtn">Go</button>
             </div>
         </div>
+    </div>
+
+    <div class="floating-actions">
+        <button class="audio-pill" id="audioBtn">Audio</button>
     </div>
 
     <div class="modal-backdrop" id="customizeModal">

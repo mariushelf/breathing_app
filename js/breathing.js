@@ -83,7 +83,13 @@ function updateBreathingGraph(durations, timestamp) {
 
     const { inhale, holdInhale, exhale, holdExhale } = durations;
     const totalCycle = inhale + holdInhale + exhale + holdExhale;
-    const currentTime = getElapsedSeconds(timestamp);
+
+    // Keep graph time aligned with a stable cycle anchor so we don't jump
+    // on every phase change. The anchor is reset only when the session starts
+    // or when presets change mid-session.
+    const sessionTime = getElapsedSeconds(timestamp);
+    const cycleAnchor = state.cycleAnchorSec || 0;
+    const currentTime = Math.max(0, sessionTime - cycleAnchor);
 
     const width = graphCanvasSize.width;
     const height = graphCanvasSize.height;
@@ -94,7 +100,7 @@ function updateBreathingGraph(durations, timestamp) {
     const secondsPerPixel = visibleSeconds / Math.max(width, 1);
     const anchorX = width * GRAPH_ANCHOR_TARGET;
     const anchorTargetTime = currentTime + (anchorX - width) * secondsPerPixel;
-    const ramp = Math.min(getElapsedSeconds(timestamp) / GRAPH_ANCHOR_RAMP_SECONDS, 1);
+    const ramp = Math.min(Math.max(sessionTime - cycleAnchor, 0) / GRAPH_ANCHOR_RAMP_SECONDS, 1);
     const currentAnchorTarget = anchorTargetTime * ramp;
 
     const graphOffset = currentAnchorTarget;

@@ -108,13 +108,25 @@ function setSelectedPreset(presetId, { save = true } = {}) {
 }
 
 function updatePresetSelectionHighlight() {
-    if (!presetButtonsContainer) return;
-    presetButtonsContainer.querySelectorAll('.preset-btn').forEach((btn) => {
-        const id = btn.getAttribute('data-preset-id');
+    if (presetButtonsContainer) {
+        presetButtonsContainer.querySelectorAll('.preset-btn').forEach((btn) => {
+            const id = btn.getAttribute('data-preset-id');
+            if (id === selectedPresetId) {
+                btn.classList.add('selected');
+            } else {
+                btn.classList.remove('selected');
+            }
+        });
+    }
+
+    // Update quick chips
+    const quickChips = document.querySelectorAll('[data-quick-preset]');
+    quickChips.forEach((chip) => {
+        const id = chip.getAttribute('data-quick-preset');
         if (id === selectedPresetId) {
-            btn.classList.add('selected');
+            chip.classList.add('selected');
         } else {
-            btn.classList.remove('selected');
+            chip.classList.remove('selected');
         }
     });
 }
@@ -156,7 +168,9 @@ function applyPresetFromConfig(preset) {
 function syncSessionAfterSettingsChange() {
     if (state.isRunning && !state.isPaused) {
         state.currentPhase = 'inhale';
-        state.phaseAnchorSec = getElapsedSeconds();
+        const anchor = getElapsedSeconds();
+        state.phaseAnchorSec = anchor;
+        state.cycleAnchorSec = anchor;
         transitionToPhase('inhale', state.phaseAnchorSec);
     }
 

@@ -6,6 +6,7 @@ const state = {
     elapsedSeconds: 0,
     animationFrame: null,
     phaseAnchorSec: 0,
+    cycleAnchorSec: 0,
     sessionStartTime: null,
     totalPausedMs: 0,
     pauseStartedAt: null,
@@ -43,6 +44,9 @@ const settingsPanel = document.getElementById('settingsPanel');
 const settingsOverlay = document.getElementById('settingsOverlay');
 const presetsFab = document.getElementById('presetsFab');
 const presetsCloseBtn = document.getElementById('presetsCloseBtn');
+const quickPresetFunctional = document.getElementById('quickPresetFunctional');
+const quickPresetBox = document.getElementById('quickPresetBox');
+const morePresetsBtn = document.getElementById('morePresetsBtn');
 const customizeBtn = document.getElementById('customizeBtn');
 const customizeModal = document.getElementById('customizeModal');
 const customizeCloseBtn = document.getElementById('customizeCloseBtn');
@@ -122,6 +126,7 @@ function updateRhythmDisplay() {
 
 // Timer functions
 function startTimer() {
+    stopTimer();
     state.timerInterval = setInterval(() => {
         state.elapsedSeconds++;
         updateTimerDisplay();
@@ -218,21 +223,24 @@ function updateUIFromSettings() {
     updateRhythmDisplay();
 }
 
-// Modal + sheet helpers
+// Modal + drawer helpers
 function updateBodyModalState() {
-    const hasModal = (customizeModal?.classList.contains('open')) || (audioModal?.classList.contains('open'));
+    const hasModal = (customizeModal?.classList.contains('open')) || (audioModal?.classList.contains('open')) || (settingsPanel?.classList.contains('open'));
     document.body.classList.toggle('has-modal', !!hasModal);
+    document.body.classList.toggle('modal-open', !!hasModal);
 }
 
-function openPresetsSheet() {
+function openPresetsDrawer() {
     settingsPanel?.classList.add('open');
     settingsOverlay?.classList.add('show');
+    morePresetsBtn?.setAttribute('aria-expanded', 'true');
     updateBodyModalState();
 }
 
-function closePresetsSheet() {
+function closePresetsDrawer() {
     settingsPanel?.classList.remove('open');
     settingsOverlay?.classList.remove('show');
+    morePresetsBtn?.setAttribute('aria-expanded', 'false');
     updateBodyModalState();
 }
 
@@ -275,13 +283,14 @@ function startSession() {
     state.sessionStartTime = performance.now();
     state.pauseStartedAt = null;
     state.phaseAnchorSec = 0;
+    state.cycleAnchorSec = 0;
     state.pausedPhaseElapsed = 0;
 
     startBtn.textContent = 'Pause';
     breathingCircle.classList.add('animating');
 
     // Close any open sheets/modals when starting
-    closePresetsSheet();
+    closePresetsDrawer();
     closeModal(customizeModal);
     closeModal(audioModal);
     updateLayoutForSettings();
@@ -303,6 +312,7 @@ function pauseSession() {
     state.pauseStartedAt = now;
     state.pausedPhaseElapsed = getElapsedSeconds(now) - state.phaseAnchorSec;
     stopTimer();
+    stopAllAudio();
 }
 
 function resetSession() {
@@ -315,6 +325,7 @@ function resetSession() {
     state.sessionStartTime = null;
     state.pauseStartedAt = null;
     state.phaseAnchorSec = 0;
+    state.cycleAnchorSec = 0;
     state.pausedPhaseElapsed = 0;
 
     startBtn.textContent = 'Start';
@@ -327,6 +338,7 @@ function resetSession() {
     if (state.animationFrame) cancelAnimationFrame(state.animationFrame);
     state.animationFrame = null;
     stopTimer();
+    stopAllAudio();
     updateTimerDisplay();
 
     renderGraphWithCurrentSettings();
@@ -342,30 +354,41 @@ startBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', resetSession);
-presetsFab?.addEventListener('click', () => {
-    openPresetsSheet();
+morePresetsBtn?.addEventListener('click', () => {
+    const isOpen = settingsPanel?.classList.contains('open');
+    if (isOpen) {
+        closePresetsDrawer();
+    } else {
+        openPresetsDrawer();
+    }
 });
 
 presetsCloseBtn?.addEventListener('click', () => {
-    closePresetsSheet();
+    closePresetsDrawer();
 });
 
 settingsOverlay?.addEventListener('click', () => {
-    closePresetsSheet();
+    closePresetsDrawer();
+});
+
+settingsPanel?.addEventListener('click', (e) => {
+    if (e.target === settingsPanel) {
+        closePresetsDrawer();
+    }
 });
 
 customizeBtn?.addEventListener('click', () => {
-    openPresetsSheet();
+    openPresetsDrawer();
     openModal(customizeModal);
 });
 
 customizeCloseBtn?.addEventListener('click', () => {
     closeModal(customizeModal);
-    openPresetsSheet();
+    openPresetsDrawer();
 });
 customizeDoneBtn?.addEventListener('click', () => {
     closeModal(customizeModal);
-    openPresetsSheet();
+    openPresetsDrawer();
 });
 customizeSaveBtn?.addEventListener('click', () => {
     setSelectedPreset('custom', { save: false });
@@ -373,12 +396,12 @@ customizeSaveBtn?.addEventListener('click', () => {
     syncSessionAfterSettingsChange();
     showNotification('Custom settings saved');
     closeModal(customizeModal);
-    openPresetsSheet();
+    openPresetsDrawer();
 });
 customizeModal?.addEventListener('click', (e) => {
     if (e.target === customizeModal) {
         closeModal(customizeModal);
-        openPresetsSheet();
+        openPresetsDrawer();
     }
 });
 
@@ -391,8 +414,30 @@ audioModal?.addEventListener('click', (e) => {
 });
 
 presetsGoBtn?.addEventListener('click', () => {
-    closePresetsSheet();
+    closePresetsDrawer();
     startSession();
+});
+
+quickPresetFunctional?.addEventListener('click', () => {
+    const preset = loadedPresets?.find((p) => p.id === 'functional');
+    if (preset) {
+        applyPresetFromConfig(preset);
+        setSelectedPreset('functional');
+        syncSessionAfterSettingsChange();
+        closePresetsDrawer();
+        startSession();
+    }
+});
+
+quickPresetBox?.addEventListener('click', () => {
+    const preset = loadedPresets?.find((p) => p.id === 'box');
+    if (preset) {
+        applyPresetFromConfig(preset);
+        setSelectedPreset('box');
+        syncSessionAfterSettingsChange();
+        closePresetsDrawer();
+        startSession();
+    }
 });
 
 // Settings change handlers
@@ -512,8 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGraphCanvas();
     renderGraphWithCurrentSettings();
 
-    // Show presets sheet on load for quick access
-    openPresetsSheet();
+    // Show presets drawer on load for quick access
+    openPresetsDrawer();
 
     // Load breathing presets from YAML and render buttons
     loadPresetsFromYaml();

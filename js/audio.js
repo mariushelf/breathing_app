@@ -126,6 +126,14 @@ function stopBreathingSound() {
     }
 }
 
+// Stop all audio outputs used by the app (breathing noise + speech)
+function stopAllAudio() {
+    stopBreathingSound();
+    if (typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking) {
+        speechSynthesis.cancel();
+    }
+}
+
 // Generate chime sound using Web Audio API
 function playChime(frequency = 440, duration = 0.4) {
     if (!settings || !settings.chimeEnabled) return;
