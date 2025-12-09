@@ -557,8 +557,8 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGraphCanvas();
     renderGraphWithCurrentSettings();
 
-    // Show presets drawer on load for quick access
-    openPresetsDrawer();
+    // Keep presets drawer closed on initial load; user can open via the toggle
+    closePresetsDrawer();
 
     // Load breathing presets from YAML and render buttons
     loadPresetsFromYaml();
