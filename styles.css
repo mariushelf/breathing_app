@@ -405,8 +405,17 @@ body.modal-open {
     display: flex;
     gap: 12px;
     margin-top: 4px;
-    flex-wrap: wrap;
-    justify-content: flex-end;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+}
+
+.sheet-actions button {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 12px 14px;
+    font-size: 0.95rem;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .sheet-actions .btn-secondary {
