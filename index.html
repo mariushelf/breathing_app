@@ -180,6 +180,30 @@
         </div>
     </div>
 
+    <div class="modal-backdrop" id="disclaimerModal" role="dialog" aria-modal="true" aria-labelledby="disclaimerTitle">
+        <div class="modal-card disclaimer-modal">
+            <div class="modal-header">
+                <div>
+                    <p class="eyebrow">Safety</p>
+                    <h3 id="disclaimerTitle">Important safety disclaimer</h3>
+                </div>
+            </div>
+
+            <div class="disclaimer-content" id="disclaimerContent" tabindex="0" aria-describedby="disclaimerTitle">
+                <p>Loading disclaimer...</p>
+            </div>
+
+            <label class="disclaimer-snooze" for="disclaimerSnoozeCheckbox">
+                <input type="checkbox" id="disclaimerSnoozeCheckbox" />
+                <span>Don't show for 7 days</span>
+            </label>
+
+            <div class="modal-actions disclaimer-actions">
+                <button class="btn btn-primary" id="disclaimerAgreeBtn">I Agree</button>
+            </div>
+        </div>
+    </div>
+
     <script src="js/audio.js"></script>
     <script src="js/presets.js"></script>
     <script src="js/breathing.js"></script>

@@ -74,6 +74,10 @@ const presetsGoBtn = document.getElementById('presetsGoBtn');
 const audioBtn = document.getElementById('audioBtn');
 const audioModal = document.getElementById('audioModal');
 const audioCloseBtn = document.getElementById('audioCloseBtn');
+const disclaimerModal = document.getElementById('disclaimerModal');
+const disclaimerContent = document.getElementById('disclaimerContent');
+const disclaimerAgreeBtn = document.getElementById('disclaimerAgreeBtn');
+const disclaimerSnoozeCheckbox = document.getElementById('disclaimerSnoozeCheckbox');
 const notification = document.getElementById('notification');
 const mainContainer = document.querySelector('.main-container');
 const breathingGraph = document.getElementById('breathingGraph');
@@ -88,6 +92,9 @@ let wakeLock = null;
 let noSleepInstance = null;
 let noSleepEnabled = false;
 let noSleepScriptLoading = null;
+const DISCLAIMER_KEY = 'breathing_app_disclaimer_ack_v1';
+let disclaimerLoaded = false;
+let disclaimerSessionAccepted = false;
 
 function loadNoSleepScript() {
     if (noSleepScriptLoading) return noSleepScriptLoading;
@@ -1373,7 +1380,7 @@ function updateUIFromSettings() {
 
 // Modal + drawer helpers
 function updateBodyModalState() {
-    const hasModal = (customizeModal?.classList.contains('open')) || (audioModal?.classList.contains('open')) || (settingsPanel?.classList.contains('open'));
+    const hasModal = (customizeModal?.classList.contains('open')) || (audioModal?.classList.contains('open')) || (settingsPanel?.classList.contains('open')) || (disclaimerModal?.classList.contains('open'));
     document.body.classList.toggle('has-modal', !!hasModal);
     document.body.classList.toggle('modal-open', !!hasModal);
 }
@@ -1402,8 +1409,82 @@ function closeModal(modalEl) {
     updateBodyModalState();
 }
 
+// Disclaimer handling
+async function loadDisclaimer() {
+    if (disclaimerLoaded) return;
+    try {
+        const res = await fetch('DISCLAIMER.md');
+        const text = await res.text();
+        disclaimerContent.textContent = text;
+        disclaimerLoaded = true;
+    } catch (e) {
+        console.error('Failed to load disclaimer', e);
+        disclaimerContent.textContent = 'Unable to load disclaimer text. Please refresh and ensure you can view the disclaimer.';
+    }
+}
+
+function showDisclaimer() {
+    openModal(disclaimerModal);
+    if (disclaimerSnoozeCheckbox) {
+        disclaimerSnoozeCheckbox.checked = false;
+    }
+    disclaimerAgreeBtn?.focus({preventScroll: true});
+}
+
+function hideDisclaimer() {
+    closeModal(disclaimerModal);
+}
+
+function isDisclaimerAccepted() {
+    if (disclaimerSessionAccepted) return true;
+    try {
+        const raw = localStorage.getItem(DISCLAIMER_KEY);
+        if (!raw) return false;
+        const parsed = JSON.parse(raw);
+        if (!parsed?.expiresAt) return false;
+        const now = Date.now();
+        if (now < parsed.expiresAt) {
+            return true;
+        } else {
+            localStorage.removeItem(DISCLAIMER_KEY);
+            return false;
+        }
+    } catch (e) {
+        return false;
+    }
+}
+
+function acceptDisclaimer() {
+    disclaimerSessionAccepted = true;
+    const snoozeChecked = disclaimerSnoozeCheckbox?.checked;
+    if (snoozeChecked) {
+        const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000;
+        try {
+            localStorage.setItem(DISCLAIMER_KEY, JSON.stringify({ expiresAt }));
+        } catch (e) {
+            console.warn('Unable to persist disclaimer acceptance', e);
+        }
+    } else {
+        try {
+            localStorage.removeItem(DISCLAIMER_KEY);
+        } catch (e) {
+            // ignore
+        }
+    }
+    hideDisclaimer();
+}
+
+function ensureDisclaimerAccepted() {
+    if (isDisclaimerAccepted()) return true;
+    showDisclaimer();
+    return false;
+}
+
 // Session controls
 function startSession() {
+    if (!ensureDisclaimerAccepted()) {
+        return;
+    }
     console.log('[DEBUG] startSession called');
     console.log('[DEBUG] composableState.activePreset:', !!composableState.activePreset);
     initAudioContext();
@@ -1792,6 +1873,16 @@ document.addEventListener('DOMContentLoaded', () => {
     resizeGraphCanvas();
     renderGraphWithCurrentSettings();
     updateTimerIcon();
+
+    // Disclaimer
+    loadDisclaimer();
+    if (!isDisclaimerAccepted()) {
+        showDisclaimer();
+    }
+
+    disclaimerAgreeBtn?.addEventListener('click', () => {
+        acceptDisclaimer();
+    });
 
     // Keep presets drawer closed on initial load; user can open via the toggle
     closePresetsDrawer();
