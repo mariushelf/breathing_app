@@ -37,6 +37,7 @@ const breathingCircle = document.getElementById('breathingCircle');
 const phaseText = document.getElementById('phaseText');
 const phaseCountdown = document.getElementById('phaseCountdown');
 const timerDisplay = document.getElementById('timerDisplay');
+const timerIcon = document.getElementById('timerIcon');
 const instructionText = document.getElementById('instructionText');
 const settingsPanel = document.getElementById('settingsPanel');
 const settingsOverlay = document.getElementById('settingsOverlay');
@@ -172,6 +173,13 @@ function updateTimerDisplay() {
     timerDisplay.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function updateTimerIcon() {
+    if (!timerIcon) return;
+    const isActive = state.isRunning && !state.isPaused;
+    timerIcon.textContent = isActive ? '⏸' : '▶';
+    timerIcon.classList.toggle('is-running', isActive);
+}
+
 // Interval notification
 function checkIntervalNotification() {
     if (settings.intervalMinutes === 0) return;
@@ -297,6 +305,7 @@ function startSession() {
         startTimer();
         instructionText.textContent = 'Tap to pause. Long-press to reset.';
         requestWakeLock();
+        updateTimerIcon();
         return;
     }
     
@@ -327,6 +336,7 @@ function startSession() {
     startTimer();
     instructionText.textContent = 'Tap to pause. Long-press to reset.';
     requestWakeLock();
+    updateTimerIcon();
 }
 
 function pauseSession() {
@@ -341,6 +351,7 @@ function pauseSession() {
     stopAllAudio();
     instructionText.textContent = 'Tap to resume. Long-press to reset.';
     releaseWakeLock();
+    updateTimerIcon();
 }
 
 function resetSession() {
@@ -368,6 +379,7 @@ function resetSession() {
     stopAllAudio();
     updateTimerDisplay();
     releaseWakeLock();
+    updateTimerIcon();
 
     renderGraphWithCurrentSettings();
 }
@@ -414,6 +426,15 @@ TAP_TARGETS.forEach((el) => {
     });
     el?.addEventListener('pointerleave', clearResetTimer);
     el?.addEventListener('pointercancel', clearResetTimer);
+});
+
+// Timer icon controls
+timerIcon?.addEventListener('click', handleTapToggle);
+timerIcon?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        handleTapToggle();
+    }
 });
 morePresetsBtn?.addEventListener('click', () => {
     const isOpen = settingsPanel?.classList.contains('open');
@@ -617,6 +638,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateLayoutForSettings();
     resizeGraphCanvas();
     renderGraphWithCurrentSettings();
+    updateTimerIcon();
 
     // Keep presets drawer closed on initial load; user can open via the toggle
     closePresetsDrawer();

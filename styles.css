@@ -190,11 +190,56 @@ body.modal-open {
     text-align: center;
 }
 
-.timer-display {
+.timer-row {
     margin-top: 30px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.timer-display {
     font-size: 2.5rem;
     font-weight: 300;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    letter-spacing: 1px;
+}
+
+.timer-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    line-height: 1;
+    color: #5d4037;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(93, 64, 55, 0.18);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, background 0.16s ease;
+    user-select: none;
+}
+
+.timer-icon.is-running {
+    background: rgba(255, 255, 255, 0.9);
+    color: #5d4037;
+    border-color: rgba(93, 64, 55, 0.18);
+}
+
+.timer-icon:hover {
+    transform: translateY(-1px) scale(1.03);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.2);
+}
+
+.timer-icon:active {
+    transform: scale(0.97);
+}
+
+.timer-icon:focus-visible {
+    outline: 2px solid #ff9a56;
+    outline-offset: 2px;
 }
 
 .controls {
