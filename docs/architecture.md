@@ -19,9 +19,16 @@ A single-page, client-only web app that runs entirely in the browser. It renders
 - Event-driven UI: DOM events (click/tap/keyboard), timers (`setInterval`), animation frames (`requestAnimationFrame`), and document visibility drive state updates and rendering.
 
 ## Key states
-- `state` (`js/app.js`): runtime session state (isRunning, isPaused, currentPhase, timers, anchors, wake lock handle, etc.).
+- `state` (`js/app.js`): runtime session state (isRunning, isPaused, currentPhase, timers, anchors, wake lock handle, etc.). Timing anchors are explicit:
+  - `phaseAnchorSec` pins the scheduled start of the current phase; the next phase anchor is computed as `previous anchor + scheduled duration` so late frames don’t accumulate drift.
+  - `cycleAnchorSec` pins the breathing graph’s stable time base so the waveform and dot stay aligned with the bubble across phase changes and preset swaps.
 - `settings` (`js/app.js`): user-configurable options (BPM vs seconds mode, inhale/exhale ratios, holds, audio toggles, voice/chime, interval minutes).
-- `composableState` (`js/app.js` + `js/presets.js`): active composable preset, its stack, current step/duration, graph timeline, until-tap handling, repeat info.
+- `composableState` (`js/app.js` + `js/presets.js`): active composable preset, its stack, current step/duration, graph timeline, until-tap handling, repeat info, and graph timeline bookkeeping (`graphTimeline`, `graphTimelineDuration`, `graphPausedAt`, `graphSkipToTime`, `currentUntilTapIndex`).
+
+## Timing and anchoring (drift prevention)
+- Both the bubble animation and the graph share the session clock (`getElapsedSeconds`), adjusted for pauses.
+- Simple presets: when a phase ends, the next phase starts at `phaseAnchorSec + phaseDuration` (scheduled time), not “now.” This prevents late frames from pushing the bubble behind while the graph keeps its stable anchor.
+- Composable presets: each step uses the same scheduled-anchor rule; `until_tap` steps anchor to the current time when the tap occurs. The graph timeline uses `cycleAnchorSec` and pause/skip markers to stay in lockstep with the bubble during holds and fast-forwards.
 
 ## How a breath session flows (simple presets)
 1) User taps the circle/graph/timer icon → `handleTapToggle` in `js/app.js` decides start/pause.
