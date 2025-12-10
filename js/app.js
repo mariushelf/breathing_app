@@ -441,13 +441,14 @@ function nextComposablePrimitive() {
     return null;
 }
 
-function beginComposableStep(step) {
+function beginComposableStep(step, anchorSec = getElapsedSeconds()) {
     composableState.currentStep = step;
     composableState.currentStepDuration = step.duration === UNTIL_TAP ? null : step.duration;
     composableState.awaitingTap = step.duration === UNTIL_TAP;
 
     state.currentPhase = step.type === 'hold' && composableState.awaitingTap ? 'holdUntilTap' : step.type;
-    state.phaseAnchorSec = getElapsedSeconds();
+    // Use provided anchor (scheduled start) to avoid drift from late frames
+    state.phaseAnchorSec = anchorSec;
     state.pausedPhaseElapsed = 0;
 
     const phaseNames = {
@@ -507,7 +508,10 @@ function advanceComposableStep() {
         endComposableSession();
         return;
     }
-    beginComposableStep(next);
+    // Anchor new step to scheduled time: previous anchor + duration (or now for until_tap)
+    const scheduledAnchor = state.phaseAnchorSec + (composableState.currentStepDuration || 0);
+    const nextAnchor = next.duration === UNTIL_TAP ? getElapsedSeconds() : scheduledAnchor;
+    beginComposableStep(next, nextAnchor);
 }
 
 // Flatten a composable preset into a timeline of primitive steps for graph rendering

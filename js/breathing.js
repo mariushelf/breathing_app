@@ -479,9 +479,10 @@ function animate(timestamp) {
 
         updateBreathingGraph(durations, timestamp);
         
-        // Check for phase transition
+        // Check for phase transition; anchor next phase to scheduled time to avoid drift
         if (elapsed >= phaseDuration) {
-            transitionToPhase(nextPhase);
+            const nextAnchor = (state.phaseAnchorSec || 0) + (phaseDuration || 0);
+            transitionToPhase(nextPhase, nextAnchor);
         }
     }
     
